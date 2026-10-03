@@ -2,8 +2,8 @@
 // Interactive ASCII background (from -ASCII-001-Hero v2), painted on the surround behind the sheet.
 const hero=document.querySelector('.ascii-bg'),canvas=hero.querySelector('canvas'),ctx=canvas.getContext('2d'),sheet=document.querySelector('.sheet');
 const motion=matchMedia('(prefers-reduced-motion: reduce)');let reduced=motion.matches;
-// Greens loop from deep teal through emerald and leaf to lime and back, so blends never jump.
-const palette=['#0f8f7a','#14a07c','#1aad6f','#2fb35c','#52b847','#7aba36','#9bbb2e','#7fb53a','#56ab4c','#2f9e5f','#178f6c','#0c8574'];const chars=['.',':','+','*','#','%','@'];
+// Only the portfolio's palette tokens: muted dots at rest, paper paint with an accent rim (no blended in-between colors).
+const chars=['.',':','+','*','#','%','@'];
 let w=0,h=0,cells=[],bursts=[],raf=0,last=0,until=0;
 const FONT='"Commit Mono",ui-monospace,monospace';
 const pointer={x:-999,y:-999,active:false,moved:0};let down=null;
@@ -13,27 +13,10 @@ const hash=n=>{const a=Math.sin(n*127.1+311.7)*43758.5453;return a-Math.floor(a)
 function wake(){until=performance.now()+1000;if(!raf)raf=requestAnimationFrame(frame)}
 function resize(){w=hero.clientWidth;h=hero.clientHeight;const d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(w*d);canvas.height=Math.round(h*d);ctx.setTransform(d,0,0,d,0,0);cells=[];space=w<600?16:18;cols=Math.ceil((w-space/2)/space);rows=Math.ceil((h-space/2)/space);for(let y=space/2;y<h;y+=space)for(let x=space/2;x<w;x+=space){const id=cells.length;cells.push({x,y,e:0,dx:0,dy:0,ux:1,uy:0,wet:0,rim:1,seed:hash(id),decay:900+hash(id+17)*1100})}brush.down=false;wake()}
 
-const colors=palette.map(hex=>hex.slice(1).match(/../g).map(v=>parseInt(v,16)));
-// Irregular color pools blend with proximity, rather than fixed stripes.
-function ink(x,y,energy){
- if(energy<=.001)return 'rgb(108,114,78)';
- const seed=hash(x*3.7+y*.91);
- const phase=(Math.sin(x*.017+y*.009)*2.1+Math.cos(y*.023-x*.007)*1.6+energy*3.2+seed*.65+12)%12;
- const first=Math.floor(phase),mix=phase-first;
- const rgb=colors[first].map((v,i)=>v+(colors[(first+1)%12][i]-v)*mix);
- const amount=Math.min(1,Math.pow(energy,.72)*(1.12+seed*.24)),base=[108,114,78];
- return `rgb(${rgb.map((v,i)=>Math.round(base[i]+(v-base[i])*amount)).join(',')})`;
-}
-// Brush paint is shaded by where the cell sits in the stroke: a slightly deeper core,
-// and an outer rim lifted towards the paper as a pale tint of the same color.
-const paper=[86,92,58];
-function paint(c){
- const seed=hash(c.x*3.7+c.y*.91);
- const phase=(Math.sin(c.x*.017+c.y*.009)*2.1+Math.cos(c.y*.023-c.x*.007)*1.6+c.e*3.2+seed*.65+12)%12;
- const first=Math.floor(phase),mix=phase-first;
- const deep=1-Math.pow(1-c.rim,1.5)*.22,lift=Math.min(.84,Math.pow(c.rim,1.25)*.8+(1-Math.min(1,c.e*1.6))*.3);
- return `rgb(${colors[first].map((v,i)=>{const hue=(v+(colors[(first+1)%12][i]-v)*mix)*deep;return Math.round(hue+(paper[i]-hue)*lift)}).join(',')})`;
-}
+const PAPER='#eeeede',ACCENT='#c1c7a5',MUTED='#777965';
+function ink(x,y,energy){return energy<=.001?MUTED:energy>.45?PAPER:ACCENT}
+// The stroke core is paper; its outer rim and drying tail fall back to accent.
+function paint(c){return c.rim<.6&&c.e>.3?PAPER:ACCENT}
 function tilt(age,seed,strength){
  if(reduced||age<0||age>650)return 0;
  return Math.sin(age/85)*Math.exp(-age/190)*(seed>.5?1:-1)*.42*strength;
