@@ -9,3 +9,5 @@
 - Historical palette/type comparison pages are exploration artifacts, not the active portfolio design system.
 - Preserve the full-viewport paper, internal scrolling, top index tabs, and folded About layout.
 - Social icons are filled and use the same muted color as the vertical copyright. Footer asterisk uses accent.
+
+- The ant lives in the existing bottom-right footer space. Never increase the footer height or enlarge the original 300×60 artwork. Fit proportionally into remaining space and reuse ink/paper colors.
