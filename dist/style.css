@@ -42,16 +42,16 @@ b,em,i,strong{font-weight:inherit;font-style:normal}button,a{color:inherit;-webk
 .work-roles dt{color:var(--muted)}/* Roles match the registration line (AN ONGOING STUDY…): 12px mono caps. */
 .work-roles dd{margin:12px 0 0;font:var(--type-meta);text-transform:uppercase;color:var(--ink)}.work-roles dd+dd{margin-top:16px}
 /* Company links: dotted muted rule (same colour as the arrow) at rest; on hover/focus a solid ink rule draws in from the left
-   over it and the small arrow nudges up-right inside the link's own right padding, so it is never clipped. */
+   over it and the small → (same as the VISIT SITE badge) nudges right inside the link's own right padding, so it is never clipped. */
 .co-link{color:var(--ink);text-decoration:none;white-space:nowrap;padding-bottom:3px;padding-right:3px;
  background:linear-gradient(var(--ink),var(--ink)) left bottom/0 1px no-repeat,radial-gradient(circle,var(--muted) .75px,transparent .85px) left bottom/4px 1px repeat-x;
  transition:background-size .32s cubic-bezier(.2,.7,.2,1)}
-.co-link::after{content:'';display:inline-block;width:7px;height:7px;margin-left:4px;vertical-align:.1em;background:var(--muted);
- -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M1.5 6.5l5-5M2.5 1.5h4v4' fill='none' stroke='black' stroke-width='1.1' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
- mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M1.5 6.5l5-5M2.5 1.5h4v4' fill='none' stroke='black' stroke-width='1.1' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+.co-link::after{content:'';display:inline-block;width:9px;height:7px;margin-left:6px;vertical-align:.12em;background:var(--muted);
+ -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 7'%3E%3Cpath d='M.6 3.5h7.6M5.3.7l2.9 2.8-2.9 2.8' fill='none' stroke='black' stroke-width='1.1' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+ mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 7'%3E%3Cpath d='M.6 3.5h7.6M5.3.7l2.9 2.8-2.9 2.8' fill='none' stroke='black' stroke-width='1.1' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
  transition:transform .32s cubic-bezier(.2,.7,.2,1),background-color .2s}
 .co-link:hover,.co-link:focus-visible{background-size:100% 1px,4px 1px}
-.co-link:hover::after,.co-link:focus-visible::after{transform:translate(2px,-2px);background:var(--ink)}
+.co-link:hover::after,.co-link:focus-visible::after{transform:translateX(2px);background:var(--ink)}
 .co-link:focus-visible{outline:1px solid var(--muted);outline-offset:3px}
 @media(prefers-reduced-motion:reduce){.co-link,.co-link::after{transition:none}}
 .work-heading{margin:0 0 14px;color:var(--muted)}
