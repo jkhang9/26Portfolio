@@ -618,7 +618,7 @@
   }
 
   function render() {
-    ctx.fillStyle = PAPER; ctx.fillRect(0, 0, 300, 60);
+    ctx.clearRect(0, 0, 300, 60); // transparent, so the paper grain shows behind the ants
     // REMOVE THESE:
     // const [g0, g1] = scene.ground || [0, 150];
     // px(g0, G, g1 - g0, 1);
