@@ -12,7 +12,7 @@
   //  - ground line on row G; every ant uses the same rig + poses
   // =========================================================
   const palette = getComputedStyle(document.documentElement);
-  const S = 2, G = 29, INK = palette.getPropertyValue('--ink').trim(), PAPER = palette.getPropertyValue('--paper').trim();
+  const S = 2, G = 30, INK = palette.getPropertyValue('--ink').trim(), PAPER = palette.getPropertyValue('--paper').trim();
 
   const cv = document.getElementById('ant');
   if (!cv) return;
