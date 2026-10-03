@@ -4,9 +4,8 @@ const hero=document.querySelector('.ascii-bg'),canvas=hero.querySelector('canvas
 const motion=matchMedia('(prefers-reduced-motion: reduce)');let reduced=motion.matches;
 // Only the portfolio's palette tokens, kept low-contrast on the surround: faint muted dots at rest,
 // accent paint with a muted rim (no blended in-between colors).
-// Marks are drawn, not typed, so they grow continuously: a tiny dot swells into a larger dot,
-// then opens into a small, thin asterisk that grows a little bigger. Click sparks reuse the same ramp.
-const SPARK_LEVEL={'·':.08,'.':.14,'˚':.26,':':.32,'+':.55,'*':.8,'×':1};
+// Marks step through · • + ✦ ✳ ⁕ as paint builds and back down as it dries. Click sparks reuse the same ramp.
+const SPARK_LEVEL={'·':.05,'.':.05,'˚':.22,':':.22,'+':.42,'*':.75,'×':.95};
 let w=0,h=0,cells=[],bursts=[],raf=0,last=0,until=0;
 const pointer={x:-999,y:-999,active:false,moved:0};let down=null;
 // The brush tip trails the pointer slightly, so quick flicks bend into curves instead of corners.
@@ -20,13 +19,22 @@ function ink(x,y,energy){return energy>.6?ACCENT:MUTED}
 // The stroke core is accent; its outer rim and drying tail fall back to muted.
 function paint(c){return c.rim<.5&&c.e>.6?ACCENT:MUTED}
 const ease=t=>t<=0?0:t>=1?1:t*t*(3-2*t);
-// level 0..1: dot (r .72 -> 1.6) until .4, then a six-armed asterisk (arm 2 -> 4.4) with hairline strokes.
+// The mark ramp, light to full: ·  •  +  ✦  ✳  ⁕ — drawn as hairline shapes so they match on every device.
+// level 0..1 picks the stage; within a stage the mark eases up from 85% so each step lands softly.
+const STAGES=6;
+function spokes(n,len,turn=0){ctx.beginPath();for(let k=0;k<n;k++){const a=turn+k*Math.PI/n,x=Math.cos(a)*len,y=Math.sin(a)*len;ctx.moveTo(-x,-y);ctx.lineTo(x,y)}ctx.stroke()}
 function mark(level,spin){
- if(level<.4){ctx.beginPath();ctx.arc(0,0,.72+ease(level/.4)*.88,0,Math.PI*2);ctx.fill();return}
- const t=ease((level-.4)/.6),arm=2+t*2.4;
- ctx.rotate(spin+t*.6);ctx.lineWidth=.7+t*.2;ctx.lineCap='round';ctx.beginPath();
- for(let k=0;k<3;k++){const a=k*Math.PI/3,x=Math.cos(a)*arm,y=Math.sin(a)*arm;ctx.moveTo(-x,-y);ctx.lineTo(x,y)}
- ctx.stroke();
+ const at=Math.min(STAGES-1e-6,Math.max(0,level)*STAGES),stage=Math.floor(at),grow=.85+.15*ease(at-stage);
+ ctx.lineWidth=.75;ctx.lineCap='round';ctx.lineJoin='round';
+ if(stage===0){ctx.beginPath();ctx.arc(0,0,.8*grow,0,Math.PI*2);ctx.fill();return}            // ·
+ if(stage===1){ctx.beginPath();ctx.arc(0,0,1.6*grow,0,Math.PI*2);ctx.fill();return}            // •
+ ctx.scale(grow,grow);
+ if(stage===2){spokes(2,2.8,0);return}                                                          // +
+ if(stage===3){const r=3.6,q=.9;ctx.beginPath();ctx.moveTo(0,-r);ctx.quadraticCurveTo(q*.3,-q*.3,r,0);ctx.quadraticCurveTo(q*.3,q*.3,0,r);ctx.quadraticCurveTo(-q*.3,q*.3,-r,0);ctx.quadraticCurveTo(-q*.3,-q*.3,0,-r);ctx.fill();return} // ✦
+ ctx.rotate(spin*.15);
+ if(stage===4){spokes(4,3.8,0);return}                                                          // ✳
+ spokes(2,2.2,Math.PI/4);                                                                       // ⁕
+ for(let k=0;k<4;k++){const a=k*Math.PI/2;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*3.4,Math.sin(a)*3.4);ctx.stroke();ctx.beginPath();ctx.arc(Math.cos(a)*4.1,Math.sin(a)*4.1,.75,0,Math.PI*2);ctx.fill()}
 }
 function tilt(age,seed,strength){
  if(reduced||age<0||age>650)return 0;
@@ -101,7 +109,7 @@ for(let i=0;i<cells.length;i++){
   if(c.wet>c.e){if(c.e<.065&&c.wet>=.065)c.entered=now;c.e+=(c.wet-c.e)*Math.min(1,dt/45)}else c.e=c.wet;
   c.wet=Math.max(0,c.wet-dt/c.decay);unsettled=true;
  }
- let level=c.e>.025?Math.min(1,(c.e-.025)*1.15):null;
+ let level=c.e>.025?Math.min(1,(c.e-.025)*1.4):null;
  let color=c.e>.001?paint(c):ink(c.x,c.y,0),alpha=c.e>.001?1:REST_ALPHA;
  const click=clickAt(c.x,c.y,now);
  if(click){
