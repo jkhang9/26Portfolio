@@ -87,10 +87,9 @@ function stroke(dt,now){
  const px=brush.x,py=brush.y,follow=Math.min(1,dt/20);
  brush.x+=(pointer.x-brush.x)*follow;brush.y+=(pointer.y-brush.y)*follow;
  const sx=brush.x-px,sy=brush.y-py,seg=Math.hypot(sx,sy);
- // Thickness follows speed: a slow drag is a fine line, a fast sweep swells wide.
+ // The brush keeps the fine, slow-drag width at every speed, so strokes stay a light scatter.
  brush.v+=(seg/Math.max(dt,1)-brush.v)*Math.min(1,dt/70);
- const min=w<600?8:10,max=w<600?30:42,k=Math.min(1,brush.v/2.4);
- const target=min+(max-min)*k*k*(3-2*k);
+ const min=w<600?8:10,target=min;
  const w0=brush.w;
  brush.w+=(target-brush.w)*Math.min(1,dt/90);
  // Resting lifts the brush; the next movement starts a fresh stroke.
