@@ -12,7 +12,7 @@ const pointer={x:-999,y:-999,active:false,moved:0};let down=null;
 const brush={x:0,y:0,down:false,w:0,v:0,len:0,id:0};let cols=0,rows=0,space=18;
 const hash=n=>{const a=Math.sin(n*127.1+311.7)*43758.5453;return a-Math.floor(a)};
 function wake(){until=performance.now()+1000;if(!raf)raf=requestAnimationFrame(frame)}
-function resize(){w=hero.clientWidth;h=hero.clientHeight;const d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(w*d);canvas.height=Math.round(h*d);ctx.setTransform(d,0,0,d,0,0);cells=[];space=w<600?16:18;cols=Math.ceil((w-space/2)/space);rows=Math.ceil((h-space/2)/space);for(let y=space/2;y<h;y+=space)for(let x=space/2;x<w;x+=space){const id=cells.length;cells.push({x,y,e:0,dx:0,dy:0,ux:1,uy:0,wet:0,rim:1,seed:hash(id),decay:900+hash(id+17)*1100})}brush.down=false;wake()}
+function resize(){w=hero.clientWidth;h=hero.clientHeight;const d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(w*d);canvas.height=Math.round(h*d);ctx.setTransform(d,0,0,d,0,0);if(fctx){fgCanvas.width=canvas.width;fgCanvas.height=canvas.height;fctx.setTransform(d,0,0,d,0,0)}cells=[];space=w<600?16:18;cols=Math.ceil((w-space/2)/space);rows=Math.ceil((h-space/2)/space);for(let y=space/2;y<h;y+=space)for(let x=space/2;x<w;x+=space){const id=cells.length;cells.push({x,y,e:0,dx:0,dy:0,ux:1,uy:0,wet:0,rim:1,seed:hash(id),decay:900+hash(id+17)*1100})}brush.down=false;wake()}
 
 const ACCENT='#c1c7a5',MUTED='#777965',REST_ALPHA=.5;
 function ink(x,y,energy){return energy>.6?ACCENT:MUTED}
@@ -22,19 +22,19 @@ const ease=t=>t<=0?0:t>=1?1:t*t*(3-2*t);
 // The mark ramp, light to full: ·  •  +  ✦  ✳  ⁕ — drawn as hairline shapes so they match on every device.
 // level 0..1 picks the stage; within a stage the mark eases up from 85% so each step lands softly.
 const STAGES=6;
-function spokes(n,len,turn=0){ctx.beginPath();for(let k=0;k<n;k++){const a=turn+k*Math.PI/n,x=Math.cos(a)*len,y=Math.sin(a)*len;ctx.moveTo(-x,-y);ctx.lineTo(x,y)}ctx.stroke()}
-function mark(level,spin){
+function spokes(n,len,turn=0,g=ctx){g.beginPath();for(let k=0;k<n;k++){const a=turn+k*Math.PI/n,x=Math.cos(a)*len,y=Math.sin(a)*len;g.moveTo(-x,-y);g.lineTo(x,y)}g.stroke()}
+function mark(level,spin,g=ctx){
  const at=Math.min(STAGES-1e-6,Math.max(0,level)*STAGES),stage=Math.floor(at),grow=.85+.15*ease(at-stage);
- ctx.lineWidth=.75;ctx.lineCap='round';ctx.lineJoin='round';
- if(stage===0){ctx.beginPath();ctx.arc(0,0,.8*grow,0,Math.PI*2);ctx.fill();return}            // ·
- if(stage===1){ctx.beginPath();ctx.arc(0,0,1.6*grow,0,Math.PI*2);ctx.fill();return}            // •
- ctx.scale(grow,grow);
- if(stage===2){spokes(2,2.8,0);return}                                                          // +
- if(stage===3){const r=3.6,q=.9;ctx.beginPath();ctx.moveTo(0,-r);ctx.quadraticCurveTo(q*.3,-q*.3,r,0);ctx.quadraticCurveTo(q*.3,q*.3,0,r);ctx.quadraticCurveTo(-q*.3,q*.3,-r,0);ctx.quadraticCurveTo(-q*.3,-q*.3,0,-r);ctx.fill();return} // ✦
- ctx.rotate(spin*.15);
- if(stage===4){spokes(4,3.8,0);return}                                                          // ✳
- spokes(2,2.2,Math.PI/4);                                                                       // ⁕
- for(let k=0;k<4;k++){const a=k*Math.PI/2;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*3.4,Math.sin(a)*3.4);ctx.stroke();ctx.beginPath();ctx.arc(Math.cos(a)*4.1,Math.sin(a)*4.1,.75,0,Math.PI*2);ctx.fill()}
+ g.lineWidth=.75;g.lineCap='round';g.lineJoin='round';
+ if(stage===0){g.beginPath();g.arc(0,0,.8*grow,0,Math.PI*2);g.fill();return}            // ·
+ if(stage===1){g.beginPath();g.arc(0,0,1.6*grow,0,Math.PI*2);g.fill();return}            // •
+ g.scale(grow,grow);
+ if(stage===2){spokes(2,2.8,0,g);return}                                                          // +
+ if(stage===3){const r=3.6,q=.9;g.beginPath();g.moveTo(0,-r);g.quadraticCurveTo(q*.3,-q*.3,r,0);g.quadraticCurveTo(q*.3,q*.3,0,r);g.quadraticCurveTo(-q*.3,q*.3,-r,0);g.quadraticCurveTo(-q*.3,-q*.3,0,-r);g.fill();return} // ✦
+ g.rotate(spin*.15);
+ if(stage===4){spokes(4,3.8,0,g);return}                                                          // ✳
+ spokes(2,2.2,Math.PI/4,g);                                                                       // ⁕
+ for(let k=0;k<4;k++){const a=k*Math.PI/2;g.beginPath();g.moveTo(0,0);g.lineTo(Math.cos(a)*3.4,Math.sin(a)*3.4);g.stroke();g.beginPath();g.arc(Math.cos(a)*4.1,Math.sin(a)*4.1,.75,0,Math.PI*2);g.fill()}
 }
 function tilt(age,seed,strength){
  if(reduced||age<0||age>650)return 0;
@@ -100,7 +100,39 @@ function stroke(dt,now){
  brush.len+=seg;
  return true;
 }
-function frame(now){raf=0;const dt=Math.min(now-(last||now-16),40);last=now;ctx.clearRect(0,0,w,h);let unsettled=stroke(dt,now);
+// Foreground trail: over the sheet only, the last few grid cells the cursor crossed (same grid as the
+// background, so the two read as one surface). Newest is ⁕ at full strength; the rest step down the ramp
+// and fade. No resting dots up here.
+const fgCanvas=document.querySelector('.ascii-fg canvas'),fctx=fgCanvas&&fgCanvas.getContext('2d');
+const TRAIL=[{level:.95,alpha:1},{level:.78,alpha:.3},{level:.62,alpha:.22},{level:.45,alpha:.15},{level:.28,alpha:.1},{level:.1,alpha:.06}];
+let trail=[];
+function overSheet(x,y){if(!sheet)return false;const r=sheet.getBoundingClientRect();return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom}
+function track(x,y,now){
+ if(!fctx||!overSheet(x,y))return;
+ const col=Math.round((x-space/2)/space),row=Math.round((y-space/2)/space),head=trail[0];
+ if(head&&head.col===col&&head.row===row){head.t=now;return}
+ trail.unshift({col,row,t:now,seed:hash(col*31+row*17)});trail.length=Math.min(trail.length,TRAIL.length);
+}
+function drawTrail(now){
+ if(!fctx)return false;
+ fctx.clearRect(0,0,w,h);
+ if(!pointer.active||!overSheet(pointer.x,pointer.y))trail=trail.filter(c=>now-c.t<450);
+ // Older entries drain away once the cursor rests, so a still cursor keeps only its own mark.
+ trail=trail.filter((c,i)=>i===0||now-c.t<700);
+ if(!trail.length)return false;
+ const r=sheet.getBoundingClientRect();
+ fctx.save();fctx.beginPath();fctx.rect(r.left,r.top,r.width,r.height);fctx.clip();
+ fctx.fillStyle=fctx.strokeStyle=MUTED;
+ trail.forEach((c,i)=>{
+  const fade=i===0&&pointer.active&&overSheet(pointer.x,pointer.y)?1:Math.max(0,1-(now-c.t)/(i?700:450));
+  fctx.globalAlpha=TRAIL[i].alpha*fade;if(fctx.globalAlpha<=.01)return;
+  fctx.save();fctx.translate(space/2+c.col*space,space/2+c.row*space);mark(TRAIL[i].level,c.seed*Math.PI,fctx);fctx.restore();
+ });
+ fctx.restore();
+ // A lone mark under a resting cursor is static, so the loop can sleep.
+ return trail.length>1||!(pointer.active&&overSheet(pointer.x,pointer.y));
+}
+function frame(now){raf=0;const dt=Math.min(now-(last||now-16),40);last=now;ctx.clearRect(0,0,w,h);let unsettled=stroke(dt,now);if(pointer.active)track(pointer.x,pointer.y,now);if(drawTrail(now))unsettled=true;
 bursts=bursts.filter(b=>now-b.t<900);
 for(let i=0;i<cells.length;i++){
  const c=cells[i];
