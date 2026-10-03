@@ -5,14 +5,15 @@ const motion=matchMedia('(prefers-reduced-motion: reduce)');let reduced=motion.m
 // Only the portfolio's palette tokens, kept low-contrast on the surround: faint muted dots at rest,
 // accent paint with a muted rim (no blended in-between colors).
 // Marks step through · • + ✦ ✳ ⁕ as paint builds and back down as it dries. Click sparks reuse the same ramp.
-const SPARK_LEVEL={'·':.05,'.':.05,'˚':.22,':':.22,'+':.42,'*':.75,'×':.95};
+// Kept small: the centre peaks at ✦/✳, its four neighbours at + and •.
+const SPARK_LEVEL={'·':.03,'.':.03,'˚':.12,':':.12,'+':.28,'*':.5,'×':.7};
 let w=0,h=0,cells=[],bursts=[],raf=0,last=0,until=0;
 const pointer={x:-999,y:-999,active:false,moved:0};let down=null;
 // The brush tip trails the pointer slightly, so quick flicks bend into curves instead of corners.
 const brush={x:0,y:0,down:false,w:0,v:0,len:0,id:0};let cols=0,rows=0,space=18;
 const hash=n=>{const a=Math.sin(n*127.1+311.7)*43758.5453;return a-Math.floor(a)};
 function wake(){until=performance.now()+1000;if(!raf)raf=requestAnimationFrame(frame)}
-function resize(){w=hero.clientWidth;h=hero.clientHeight;const d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(w*d);canvas.height=Math.round(h*d);ctx.setTransform(d,0,0,d,0,0);cells=[];space=w<600?16:18;cols=Math.ceil((w-space/2)/space);rows=Math.ceil((h-space/2)/space);for(let y=space/2;y<h;y+=space)for(let x=space/2;x<w;x+=space){const id=cells.length;cells.push({x,y,e:0,dx:0,dy:0,ux:1,uy:0,wet:0,rim:1,seed:hash(id),decay:900+hash(id+17)*1100})}brush.down=false;wake()}
+function resize(){w=hero.clientWidth;h=hero.clientHeight;const d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(w*d);canvas.height=Math.round(h*d);ctx.setTransform(d,0,0,d,0,0);if(fctx){fgCanvas.width=canvas.width;fgCanvas.height=canvas.height;fctx.setTransform(d,0,0,d,0,0)}cells=[];space=w<600?16:18;cols=Math.ceil((w-space/2)/space);rows=Math.ceil((h-space/2)/space);for(let y=space/2;y<h;y+=space)for(let x=space/2;x<w;x+=space){const id=cells.length;cells.push({x,y,e:0,dx:0,dy:0,ux:1,uy:0,wet:0,rim:1,seed:hash(id),decay:420+hash(id+17)*480})}brush.down=false;wake()}
 
 const ACCENT='#c1c7a5',MUTED='#777965',REST_ALPHA=.5;
 function ink(x,y,energy){return energy>.6?ACCENT:MUTED}
@@ -22,19 +23,19 @@ const ease=t=>t<=0?0:t>=1?1:t*t*(3-2*t);
 // The mark ramp, light to full: ·  •  +  ✦  ✳  ⁕ — drawn as hairline shapes so they match on every device.
 // level 0..1 picks the stage; within a stage the mark eases up from 85% so each step lands softly.
 const STAGES=6;
-function spokes(n,len,turn=0){ctx.beginPath();for(let k=0;k<n;k++){const a=turn+k*Math.PI/n,x=Math.cos(a)*len,y=Math.sin(a)*len;ctx.moveTo(-x,-y);ctx.lineTo(x,y)}ctx.stroke()}
-function mark(level,spin){
+function spokes(n,len,turn=0,g=ctx){g.beginPath();for(let k=0;k<n;k++){const a=turn+k*Math.PI/n,x=Math.cos(a)*len,y=Math.sin(a)*len;g.moveTo(-x,-y);g.lineTo(x,y)}g.stroke()}
+function mark(level,spin,g=ctx,lw=.75){
  const at=Math.min(STAGES-1e-6,Math.max(0,level)*STAGES),stage=Math.floor(at),grow=.85+.15*ease(at-stage);
- ctx.lineWidth=.75;ctx.lineCap='round';ctx.lineJoin='round';
- if(stage===0){ctx.beginPath();ctx.arc(0,0,.8*grow,0,Math.PI*2);ctx.fill();return}            // ·
- if(stage===1){ctx.beginPath();ctx.arc(0,0,1.6*grow,0,Math.PI*2);ctx.fill();return}            // •
- ctx.scale(grow,grow);
- if(stage===2){spokes(2,2.8,0);return}                                                          // +
- if(stage===3){const r=3.6,q=.9;ctx.beginPath();ctx.moveTo(0,-r);ctx.quadraticCurveTo(q*.3,-q*.3,r,0);ctx.quadraticCurveTo(q*.3,q*.3,0,r);ctx.quadraticCurveTo(-q*.3,q*.3,-r,0);ctx.quadraticCurveTo(-q*.3,-q*.3,0,-r);ctx.fill();return} // ✦
- ctx.rotate(spin*.15);
- if(stage===4){spokes(4,3.8,0);return}                                                          // ✳
- spokes(2,2.2,Math.PI/4);                                                                       // ⁕
- for(let k=0;k<4;k++){const a=k*Math.PI/2;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*3.4,Math.sin(a)*3.4);ctx.stroke();ctx.beginPath();ctx.arc(Math.cos(a)*4.1,Math.sin(a)*4.1,.75,0,Math.PI*2);ctx.fill()}
+ g.lineWidth=lw;g.lineCap='round';g.lineJoin='round';
+ if(stage===0){g.beginPath();g.arc(0,0,.8*grow,0,Math.PI*2);g.fill();return}            // ·
+ if(stage===1){g.beginPath();g.arc(0,0,1.6*grow,0,Math.PI*2);g.fill();return}            // •
+ g.scale(grow,grow);
+ if(stage===2){spokes(2,2.8,0,g);return}                                                          // +
+ if(stage===3){const r=3.6,q=.9;g.beginPath();g.moveTo(0,-r);g.quadraticCurveTo(q*.3,-q*.3,r,0);g.quadraticCurveTo(q*.3,q*.3,0,r);g.quadraticCurveTo(-q*.3,q*.3,-r,0);g.quadraticCurveTo(-q*.3,-q*.3,0,-r);g.fill();return} // ✦
+ g.rotate(spin*.15);
+ if(stage===4){spokes(4,3.8,0,g);return}                                                          // ✳
+ spokes(2,2.2,Math.PI/4,g);                                                                       // ⁕
+ for(let k=0;k<4;k++){const a=k*Math.PI/2;g.beginPath();g.moveTo(0,0);g.lineTo(Math.cos(a)*3.4,Math.sin(a)*3.4);g.stroke();g.beginPath();g.arc(Math.cos(a)*4.1,Math.sin(a)*4.1,.75,0,Math.PI*2);g.fill()}
 }
 function tilt(age,seed,strength){
  if(reduced||age<0||age>650)return 0;
@@ -42,7 +43,7 @@ function tilt(age,seed,strength){
 }
 // A click claims existing cells. There is no second particle rendering pass.
 function clickAt(x,y,now){
- for(let i=bursts.length-1;i>=0;i--){const b=bursts[i];if(now-b.t<900&&Math.hypot(x-b.x,y-b.y)<49)return b}
+ for(let i=bursts.length-1;i>=0;i--){const b=bursts[i];if(now-b.t<900&&Math.hypot(x-b.x,y-b.y)<20)return b}
  return null;
 }
 function clickGlyph(b,x,y,now,center=false){
@@ -87,10 +88,9 @@ function stroke(dt,now){
  const px=brush.x,py=brush.y,follow=Math.min(1,dt/20);
  brush.x+=(pointer.x-brush.x)*follow;brush.y+=(pointer.y-brush.y)*follow;
  const sx=brush.x-px,sy=brush.y-py,seg=Math.hypot(sx,sy);
- // Thickness follows speed: a slow drag is a fine line, a fast sweep swells wide.
+ // The brush keeps the fine, slow-drag width at every speed, so strokes stay a light scatter.
  brush.v+=(seg/Math.max(dt,1)-brush.v)*Math.min(1,dt/70);
- const min=w<600?8:10,max=w<600?30:42,k=Math.min(1,brush.v/2.4);
- const target=min+(max-min)*k*k*(3-2*k);
+ const min=w<600?8:10,target=min;
  const w0=brush.w;
  brush.w+=(target-brush.w)*Math.min(1,dt/90);
  // Resting lifts the brush; the next movement starts a fresh stroke.
@@ -100,7 +100,13 @@ function stroke(dt,now){
  brush.len+=seg;
  return true;
 }
+// Foreground mirror: the same brush, seen through the sheet. Painted cells that sit under the sheet are
+// drawn again on a canvas above it in the surround green at full opacity (the inverse of the light-on-green
+// background). Resting dots are not mirrored, so the paper stays clean until it is touched.
+const fgCanvas=document.querySelector('.ascii-fg canvas'),fctx=fgCanvas&&fgCanvas.getContext('2d');
+const SURROUND='#565c3a';
 function frame(now){raf=0;const dt=Math.min(now-(last||now-16),40);last=now;ctx.clearRect(0,0,w,h);let unsettled=stroke(dt,now);
+if(fctx){fctx.clearRect(0,0,w,h);const r=sheet.getBoundingClientRect();fctx.save();fctx.beginPath();fctx.rect(r.left,r.top,r.width,r.height);fctx.clip();fctx.fillStyle=fctx.strokeStyle=SURROUND}
 bursts=bursts.filter(b=>now-b.t<900);
 for(let i=0;i<cells.length;i++){
  const c=cells[i];
@@ -126,18 +132,22 @@ for(let i=0;i<cells.length;i++){
  if(Math.abs(c.dx-tx)+Math.abs(c.dy-ty)>.02||(!reduced&&age<650&&c.e>.025))unsettled=true;
  if(level!=null){
   ctx.save();ctx.translate(c.x+(click?0:c.dx),c.y+(click?0:c.dy));ctx.rotate(angle);
-  if(!reduced&&click&&c.x===click.x&&c.y===click.y){const age=now-click.t,scale=age<75?.9:1+Math.sin(Math.min(1,(age-75)/180)*Math.PI)*.08;ctx.scale(scale,scale)}
-  mark(level,c.seed*Math.PI);ctx.restore();
+  if(!reduced&&click&&c.x===click.x&&c.y===click.y){const age=now-click.t,scale=age<75?.9:1+Math.sin(Math.min(1,(age-75)/180)*Math.PI)*.04;ctx.scale(scale,scale)}
+  mark(level,c.seed*Math.PI);
+  if(fctx){fctx.setTransform(ctx.getTransform());mark(level,c.seed*Math.PI,fctx)}
+  ctx.restore();
  }else{ctx.beginPath();ctx.arc(c.x+c.dx,c.y+c.dy,.72,0,Math.PI*2);ctx.fill()}
  ctx.globalAlpha=1;
 }
+if(fctx){fctx.restore()}
 if(bursts.length||unsettled||now<until)raf=requestAnimationFrame(frame);else last=0;
 }
-const onSheet=e=>sheet&&sheet.contains(e.target);
+// Clicks spark anywhere except on controls, so links, tabs and buttons behave exactly as before.
+const onControl=e=>!!(e.target.closest&&e.target.closest('a,button,input,textarea,select,label,summary,[role="button"]'));
 function move(e){pointer.x=e.clientX;pointer.y=e.clientY;pointer.active=true;pointer.moved=performance.now();if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>9)down.drag=true;wake()}
-// Listen on the window so the sheet stays fully interactive; clicks only spark on the surround.
-addEventListener('pointermove',move,{passive:true});addEventListener('pointerdown',e=>{if(e.button!==0)return;move(e);down=onSheet(e)?null:{x:e.clientX,y:e.clientY,drag:false}},{passive:true});
-addEventListener('pointerup',e=>{if(down&&!down.drag&&!onSheet(e)){poke(e.clientX,e.clientY)}down=null;if(e.pointerType!=='mouse'){pointer.active=false;wake()}},{passive:true});
+// Listen on the window so the sheet stays fully interactive; sparks on the sheet are mirrored in green.
+addEventListener('pointermove',move,{passive:true});addEventListener('pointerdown',e=>{if(e.button!==0)return;move(e);down=onControl(e)?null:{x:e.clientX,y:e.clientY,drag:false}},{passive:true});
+addEventListener('pointerup',e=>{if(down&&!down.drag&&!onControl(e)){poke(e.clientX,e.clientY)}down=null;if(e.pointerType!=='mouse'){pointer.active=false;wake()}},{passive:true});
 function leave(){pointer.active=false;down=null;wake()}document.documentElement.addEventListener('pointerleave',()=>{if(!down)leave()});addEventListener('pointercancel',leave);addEventListener('blur',leave);
 motion.addEventListener('change',e=>{reduced=e.matches;wake()});window.addEventListener('resize',resize);document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;last=0;pointer.active=false}else wake()});resize();
 })();
