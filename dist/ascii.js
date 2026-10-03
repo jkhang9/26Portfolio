@@ -5,7 +5,8 @@ const motion=matchMedia('(prefers-reduced-motion: reduce)');let reduced=motion.m
 // Only the portfolio's palette tokens, kept low-contrast on the surround: faint muted dots at rest,
 // accent paint with a muted rim (no blended in-between colors).
 // Marks step through · • + ✦ ✳ ⁕ as paint builds and back down as it dries. Click sparks reuse the same ramp.
-const SPARK_LEVEL={'·':.05,'.':.05,'˚':.22,':':.22,'+':.42,'*':.75,'×':.95};
+// Kept small: the centre peaks at ✦/✳, its four neighbours at + and •.
+const SPARK_LEVEL={'·':.03,'.':.03,'˚':.12,':':.12,'+':.28,'*':.5,'×':.7};
 let w=0,h=0,cells=[],bursts=[],raf=0,last=0,until=0;
 const pointer={x:-999,y:-999,active:false,moved:0};let down=null;
 // The brush tip trails the pointer slightly, so quick flicks bend into curves instead of corners.
@@ -42,7 +43,7 @@ function tilt(age,seed,strength){
 }
 // A click claims existing cells. There is no second particle rendering pass.
 function clickAt(x,y,now){
- for(let i=bursts.length-1;i>=0;i--){const b=bursts[i];if(now-b.t<900&&Math.hypot(x-b.x,y-b.y)<49)return b}
+ for(let i=bursts.length-1;i>=0;i--){const b=bursts[i];if(now-b.t<900&&Math.hypot(x-b.x,y-b.y)<20)return b}
  return null;
 }
 function clickGlyph(b,x,y,now,center=false){
@@ -131,7 +132,7 @@ for(let i=0;i<cells.length;i++){
  if(Math.abs(c.dx-tx)+Math.abs(c.dy-ty)>.02||(!reduced&&age<650&&c.e>.025))unsettled=true;
  if(level!=null){
   ctx.save();ctx.translate(c.x+(click?0:c.dx),c.y+(click?0:c.dy));ctx.rotate(angle);
-  if(!reduced&&click&&c.x===click.x&&c.y===click.y){const age=now-click.t,scale=age<75?.9:1+Math.sin(Math.min(1,(age-75)/180)*Math.PI)*.08;ctx.scale(scale,scale)}
+  if(!reduced&&click&&c.x===click.x&&c.y===click.y){const age=now-click.t,scale=age<75?.9:1+Math.sin(Math.min(1,(age-75)/180)*Math.PI)*.04;ctx.scale(scale,scale)}
   mark(level,c.seed*Math.PI);
   if(fctx){fctx.setTransform(ctx.getTransform());mark(level,c.seed*Math.PI,fctx)}
   ctx.restore();
