@@ -32,8 +32,9 @@ b,em,i,strong{font-weight:inherit;font-style:normal}button,a{color:inherit;-webk
 /* Work fills the scroll area so Selected Work sits flush at the bottom when there is room. */
 .work-page{min-height:100%;display:flex;flex-direction:column;padding-bottom:4px}
 .work-selected{margin-top:auto;padding-top:56px}
-.work-hero{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:40px;align-items:start}
-.work-statement{margin:0;max-width:34em;font:var(--type-note);color:var(--ink)}
+/* Statement never takes more than half the width. */
+.work-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:start}
+.work-statement{margin:0;font:var(--type-note);color:var(--ink)}
 .work-roles{margin:0;display:grid;gap:44px;text-align:right}
 .work-roles dt{color:var(--muted)}/* Roles match the registration line (AN ONGOING STUDY…): 12px mono caps. */
 .work-roles dd{margin:12px 0 0;font:var(--type-meta);text-transform:uppercase;color:var(--ink)}.work-roles dd+dd{margin-top:16px}
