@@ -1,7 +1,7 @@
 # Portfolio design rules
 
 - Use at most three typography styles per text font. A style includes weight, size, line height, and letter spacing. Use the named tokens in dist/style.css rather than adding one-off values.
-- Geist: display (responsive 30–88px, regular, 1.05 line height, -.055em spacing); body (16px, regular, 1.65, zero spacing); UI (14px, regular, 1.2, zero spacing).
+- Geist: display (responsive 30–88px, regular, 1.05 line height, -.055em spacing); body (16px, regular, 1.65, zero spacing); UI (14px, regular, 1.45, zero spacing).
 - Crimson Pro: editorial copy (24px, regular, 1.2, zero spacing); closing note (20px, regular, 1.3, zero spacing); caption (16px, regular, 1.4, zero spacing) for Playground descriptions. All serif text is upright and no larger than 24px.
 - Commit Mono: metadata (12px, regular, 1.6, zero spacing).
 - The asterisk font is an icon asset, not a text family. Keep its glyphs monochrome.
