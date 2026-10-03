@@ -23,9 +23,9 @@ const ease=t=>t<=0?0:t>=1?1:t*t*(3-2*t);
 // level 0..1 picks the stage; within a stage the mark eases up from 85% so each step lands softly.
 const STAGES=6;
 function spokes(n,len,turn=0,g=ctx){g.beginPath();for(let k=0;k<n;k++){const a=turn+k*Math.PI/n,x=Math.cos(a)*len,y=Math.sin(a)*len;g.moveTo(-x,-y);g.lineTo(x,y)}g.stroke()}
-function mark(level,spin,g=ctx){
+function mark(level,spin,g=ctx,lw=.75){
  const at=Math.min(STAGES-1e-6,Math.max(0,level)*STAGES),stage=Math.floor(at),grow=.85+.15*ease(at-stage);
- g.lineWidth=.75;g.lineCap='round';g.lineJoin='round';
+ g.lineWidth=lw;g.lineCap='round';g.lineJoin='round';
  if(stage===0){g.beginPath();g.arc(0,0,.8*grow,0,Math.PI*2);g.fill();return}            // ·
  if(stage===1){g.beginPath();g.arc(0,0,1.6*grow,0,Math.PI*2);g.fill();return}            // •
  g.scale(grow,grow);
@@ -100,53 +100,54 @@ function stroke(dt,now){
  brush.len+=seg;
  return true;
 }
-// Foreground fairy dust: over the sheet only, on the background's grid so the two read as one surface.
-// The cell under the cursor holds a ⁕ that breathes, turns and twinkles; crossing cells sheds a few soft
-// sparkles that float up, sway, twinkle and shrink back down the ramp (✳ ✦ + • ·) before vanishing.
-// It runs its own small loop, sleeps when nothing is left, and holds still under reduced motion.
+// Foreground fairy dust: over the sheet only, born on the background's grid so the two read as one surface.
+// Nothing sits under a resting cursor. Movement sprays sparkles whose density, size, brightness and
+// momentum follow cursor speed: a slow drift leaves a few faint dots, a quick sweep throws a dense
+// trail of thin sage ✳ (the footer asterisk); slow sparkles are muted so they still read on paper that glide on, then shrink back through ✦ + • · and vanish.
+// It runs its own small loop, sleeps when empty, and is off under reduced motion.
 const fgCanvas=document.querySelector('.ascii-fg canvas'),fctx=fgCanvas&&fgCanvas.getContext('2d');
-let dust=[],head=null,fgRaf=0,fgLast=0;
+let dust=[],fgRaf=0,fgLast=0,prev=null,carry=0;
+const DUST_MAX=140;
 function overSheet(x,y){if(!sheet)return false;const r=sheet.getBoundingClientRect();return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom}
-function cellAt(x,y){const col=Math.round((x-space/2)/space),row=Math.round((y-space/2)/space);return {col,row,x:space/2+col*space,y:space/2+row*space}}
 function fgWake(){if(fctx&&!fgRaf)fgRaf=requestAnimationFrame(fgFrame)}
 function track(x,y){
- if(!fctx)return;
- if(!overSheet(x,y)){head=null;fgWake();return}
- const c=cellAt(x,y),now=performance.now();
- if(!head||head.col!==c.col||head.row!==c.row){
-  if(head&&!reduced){const n=1+(Math.random()<.45);for(let k=0;k<n;k++)dust.push({
-   x:head.x+(Math.random()-.5)*6,y:head.y+(Math.random()-.5)*6,t:now,life:900+Math.random()*700,
-   level:.62+Math.random()*.25,alpha:.22+Math.random()*.14,vy:-(.008+Math.random()*.014),
-   sway:3+Math.random()*5,phase:Math.random()*6.28,spin:(Math.random()-.5)*.004,seed:Math.random()})}
-  if(dust.length>48)dust.splice(0,dust.length-48);
-  head={...c,born:now,seed:hash(c.col*31+c.row*17)};
+ if(!fctx||reduced)return;
+ const now=performance.now();
+ if(!overSheet(x,y)){prev=null;carry=0;return}
+ if(!prev){prev={x,y,t:now};return}
+ const dx=x-prev.x,dy=y-prev.y,dist=Math.hypot(dx,dy),dt=Math.max(8,now-prev.t);
+ prev={x,y,t:now};if(dist<.5)return;
+ const speed=Math.min(1,dist/dt/1.6),vx=dx/dt,vy=dy/dt;
+ // Faster strokes drop sparkles more closely together.
+ const gap=26-17*speed;carry+=dist;
+ while(carry>=gap){
+  carry-=gap;const t=1-carry/dist,px=x-dx*(1-t),py=y-dy*(1-t);
+  const col=Math.round((px-space/2)/space),row=Math.round((py-space/2)/space),r=Math.random();
+  dust.push({x:space/2+col*space+(Math.random()-.5)*7,y:space/2+row*space+(Math.random()-.5)*7,t:now,
+   life:650+r*400+speed*450,size:.85+speed*.7+Math.random()*.4,color:speed<.35?MUTED:ACCENT,level:.5+speed*.3+Math.random()*.08,
+   alpha:.45+speed*.45,vx:vx*(.15+Math.random()*.25),vy:vy*(.15+Math.random()*.25)-.01,
+   phase:Math.random()*6.28,spin:(Math.random()-.5)*(.004+speed*.01),seed:Math.random()});
  }
+ if(dust.length>DUST_MAX)dust.splice(0,dust.length-DUST_MAX);
  fgWake();
 }
 function fgFrame(now){
  fgRaf=0;const dt=Math.min(now-(fgLast||now-16),40);fgLast=now;
  fctx.clearRect(0,0,w,h);
  dust=dust.filter(p=>now-p.t<p.life);
- if(!head&&!dust.length){fgLast=0;return}
- const r=sheet.getBoundingClientRect();
+ if(!dust.length){fgLast=0;return}
+ const r=sheet.getBoundingClientRect(),drag=Math.exp(-dt/240);
  fctx.save();fctx.beginPath();fctx.rect(r.left,r.top,r.width,r.height);fctx.clip();
- fctx.fillStyle=fctx.strokeStyle=MUTED;
  for(const p of dust){
-  const k=(now-p.t)/p.life,age=now-p.t;
-  p.y+=p.vy*dt;
-  const x=p.x+Math.sin(age/260+p.phase)*p.sway*k,twinkle=.55+.45*Math.sin(age/90+p.phase*3);
-  fctx.globalAlpha=p.alpha*(1-k)*twinkle;
-  fctx.save();fctx.translate(x,p.y);fctx.rotate(age*p.spin);mark(p.level*(1-k*.9),p.seed*Math.PI,fctx);fctx.restore();
- }
- if(head){
-  const age=now-head.born,still=reduced?0:1;
-  const breathe=1+still*.07*Math.sin(now/420+head.seed*6),twinkle=1-still*.18*(.5+.5*Math.sin(now/230+head.seed*9));
-  const pop=reduced?1:.75+.25*ease(Math.min(1,age/180));
-  fctx.globalAlpha=twinkle;
-  fctx.save();fctx.translate(head.x,head.y);fctx.scale(breathe*pop,breathe*pop);fctx.rotate(still*now/2600);mark(.95,head.seed*Math.PI,fctx);fctx.restore();
+  const age=now-p.t,k=age/p.life;
+  p.vx*=drag;p.vy=p.vy*drag-.00002*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+  const twinkle=.7+.3*Math.sin(age/70+p.phase);
+  fctx.globalAlpha=Math.min(1,p.alpha*Math.pow(1-k,1.3)*twinkle);if(fctx.globalAlpha<.02)continue;
+  fctx.fillStyle=fctx.strokeStyle=p.color;fctx.save();fctx.translate(p.x,p.y);fctx.rotate(age*p.spin);const sc=p.size*(1-.35*k);fctx.scale(sc,sc);
+  mark(Math.min(.8,p.level*Math.pow(1-k,.7)),p.seed*Math.PI,fctx,.75/sc);fctx.restore();
  }
  fctx.restore();fctx.globalAlpha=1;
- if(dust.length||(head&&!reduced))fgRaf=requestAnimationFrame(fgFrame);else fgLast=0;
+ fgRaf=requestAnimationFrame(fgFrame);
 }
 function frame(now){raf=0;const dt=Math.min(now-(last||now-16),40);last=now;ctx.clearRect(0,0,w,h);let unsettled=stroke(dt,now);
 bursts=bursts.filter(b=>now-b.t<900);
@@ -186,6 +187,6 @@ function move(e){pointer.x=e.clientX;pointer.y=e.clientY;track(e.clientX,e.clien
 // Listen on the window so the sheet stays fully interactive; clicks only spark on the surround.
 addEventListener('pointermove',move,{passive:true});addEventListener('pointerdown',e=>{if(e.button!==0)return;move(e);down=onSheet(e)?null:{x:e.clientX,y:e.clientY,drag:false}},{passive:true});
 addEventListener('pointerup',e=>{if(down&&!down.drag&&!onSheet(e)){poke(e.clientX,e.clientY)}down=null;if(e.pointerType!=='mouse'){pointer.active=false;wake()}},{passive:true});
-function leave(){pointer.active=false;down=null;head=null;fgWake();wake()}document.documentElement.addEventListener('pointerleave',()=>{if(!down)leave()});addEventListener('pointercancel',leave);addEventListener('blur',leave);
+function leave(){pointer.active=false;down=null;prev=null;wake()}document.documentElement.addEventListener('pointerleave',()=>{if(!down)leave()});addEventListener('pointercancel',leave);addEventListener('blur',leave);
 motion.addEventListener('change',e=>{reduced=e.matches;wake()});window.addEventListener('resize',resize);document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;last=0;pointer.active=false}else wake()});resize();
 })();
