@@ -14,6 +14,7 @@ python3 -m http.server 8000 --directory dist
 ## Files
 
 - `dist/index.html`, `dist/style.css`, `dist/script.js`: site source
+- `dist/ascii.js`: interactive ASCII background on the surround (from -ASCII-001-Hero v2)
 - `dist/fonts/`: self-hosted fonts and licenses
 - `DESIGN.md`: five-color palette and typography rules
 - `ASSET-CREDITS.md`: image attribution

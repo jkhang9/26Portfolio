@@ -17,7 +17,9 @@
 *{box-sizing:border-box}html{height:100%;overflow:hidden;overscroll-behavior:none}
 body{--frame-gap:clamp(10px,1.5vw,22px);margin:0;width:100%;height:100vh;height:100dvh;min-height:0;overflow:hidden;overscroll-behavior:none;padding:78px var(--frame-gap) var(--frame-gap);background:var(--surround);color:var(--ink);font:var(--type-body);font-synthesis:none;letter-spacing:0}
 b,em,i,strong{font-weight:inherit;font-style:normal}button,a{color:inherit;-webkit-tap-highlight-color:transparent}button{font:var(--type-ui);letter-spacing:0;cursor:pointer}button:focus-visible,a:focus-visible{outline:2px solid var(--ink);outline-offset:4px}[hidden]{display:none!important}
-.sheet{position:relative;isolation:isolate;background:var(--paper);margin:auto;height:100%;min-height:0;max-height:100%;width:100%;display:grid;grid-template-rows:auto minmax(0,1fr) 58px;padding:24px 36px 0 86px;overflow:visible}
+/* ASCII background: fills the viewport behind the sheet, visible only on the surround. */
+.ascii-bg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}.ascii-bg canvas{position:absolute;inset:0;width:100%;height:100%}
+.sheet{position:relative;z-index:1;isolation:isolate;background:var(--paper);margin:auto;height:100%;min-height:0;max-height:100%;width:100%;display:grid;grid-template-rows:auto minmax(0,1fr) 58px;padding:24px 36px 0 86px;overflow:visible}
 .registration,.small-label,.index-tabs button span,.ribbon-origin>p,.ribbon-fold>span,.ribbon-tail>span,.ribbon-curiosity figcaption{font:var(--type-meta);letter-spacing:0;font-variant-numeric:tabular-nums}
 .registration{grid-row:1;min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px 24px;align-items:center;padding-bottom:18px;border-bottom:1px solid var(--accent)}
 .location-meta,.edition{white-space:nowrap}.study-meta{text-align:center;text-wrap:balance}
