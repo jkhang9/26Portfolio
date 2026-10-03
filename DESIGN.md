@@ -11,3 +11,4 @@
 - Social icons are filled and use the same muted color as the vertical copyright. Footer asterisk uses accent.
 
 - The ant lives in the existing bottom-right footer space. Never increase the footer height or enlarge the original 300×60 artwork. Fit proportionally into remaining space and reuse ink/paper colors.
+- The interactive ASCII background (dist/ascii.js, ported from -ASCII-001-Hero v2) fills the surround behind the sheet. Its paint keeps the original green palette as artwork, like photography; resting dots are a subtle tint of surround.
