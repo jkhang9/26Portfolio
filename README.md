@@ -10,7 +10,6 @@ No build step or package installation is required.
 python3 -m http.server 8000 --directory dist
 ```
 
-Open http://localhost:8000. The three sections use `#work`, `#playground`, and `#about-me`.
 
 ## Files
 
@@ -22,4 +21,3 @@ Open http://localhost:8000. The three sections use `#work`, `#playground`, and `
 
 Work and Playground are intentionally empty; About contains the continuous folded layout. Only content within the paper scrolls.
 
-Current hosted site: https://janice-field-journal.jkhang.chatgpt.site
