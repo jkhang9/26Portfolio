@@ -619,8 +619,9 @@
 
   function render() {
     ctx.fillStyle = PAPER; ctx.fillRect(0, 0, 300, 60);
-    const [g0, g1] = scene.ground || [0, 150];
-    px(g0, G, g1 - g0, 1);
+    // REMOVE THESE:
+    // const [g0, g1] = scene.ground || [0, 150];
+    // px(g0, G, g1 - g0, 1);
     scene.back && scene.back();
     scene.ants.forEach(drawAnt);
     scene.front && scene.front();
