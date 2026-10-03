@@ -4,11 +4,10 @@ const hero=document.querySelector('.ascii-bg'),canvas=hero.querySelector('canvas
 const motion=matchMedia('(prefers-reduced-motion: reduce)');let reduced=motion.matches;
 // Only the portfolio's palette tokens, kept low-contrast on the surround: faint muted dots at rest,
 // accent paint with a muted rim (no blended in-between colors).
-// Density ramp from the site's asterisk font, ordered by ink coverage; U+FE0E keeps them out of emoji.
-const chars=['.','✳\uFE0E','✲\uFE0E','✼\uFE0E','✻\uFE0E','✾\uFE0E','✽\uFE0E'];
-const SPARK={'*':'✻\uFE0E','×':'✽\uFE0E','+':'✳\uFE0E'};
+// Marks are drawn, not typed, so they grow continuously: a tiny dot swells into a larger dot,
+// then opens into a small, thin asterisk that grows a little bigger. Click sparks reuse the same ramp.
+const SPARK_LEVEL={'·':.08,'.':.14,'˚':.26,':':.32,'+':.55,'*':.8,'×':1};
 let w=0,h=0,cells=[],bursts=[],raf=0,last=0,until=0;
-const FONT='"Asterisk Symbols","Commit Mono",ui-monospace,monospace';
 const pointer={x:-999,y:-999,active:false,moved:0};let down=null;
 // The brush tip trails the pointer slightly, so quick flicks bend into curves instead of corners.
 const brush={x:0,y:0,down:false,w:0,v:0,len:0,id:0};let cols=0,rows=0,space=18;
@@ -17,9 +16,18 @@ function wake(){until=performance.now()+1000;if(!raf)raf=requestAnimationFrame(f
 function resize(){w=hero.clientWidth;h=hero.clientHeight;const d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(w*d);canvas.height=Math.round(h*d);ctx.setTransform(d,0,0,d,0,0);cells=[];space=w<600?16:18;cols=Math.ceil((w-space/2)/space);rows=Math.ceil((h-space/2)/space);for(let y=space/2;y<h;y+=space)for(let x=space/2;x<w;x+=space){const id=cells.length;cells.push({x,y,e:0,dx:0,dy:0,ux:1,uy:0,wet:0,rim:1,seed:hash(id),decay:900+hash(id+17)*1100})}brush.down=false;wake()}
 
 const ACCENT='#c1c7a5',MUTED='#777965',REST_ALPHA=.5;
-function ink(x,y,energy){return energy>.45?ACCENT:MUTED}
+function ink(x,y,energy){return energy>.6?ACCENT:MUTED}
 // The stroke core is accent; its outer rim and drying tail fall back to muted.
-function paint(c){return c.rim<.6&&c.e>.3?ACCENT:MUTED}
+function paint(c){return c.rim<.5&&c.e>.6?ACCENT:MUTED}
+const ease=t=>t<=0?0:t>=1?1:t*t*(3-2*t);
+// level 0..1: dot (r .72 -> 1.6) until .4, then a six-armed asterisk (arm 2 -> 4.4) with hairline strokes.
+function mark(level,spin){
+ if(level<.4){ctx.beginPath();ctx.arc(0,0,.72+ease(level/.4)*.88,0,Math.PI*2);ctx.fill();return}
+ const t=ease((level-.4)/.6),arm=2+t*2.4;
+ ctx.rotate(spin+t*.6);ctx.lineWidth=.7+t*.2;ctx.lineCap='round';ctx.beginPath();
+ for(let k=0;k<3;k++){const a=k*Math.PI/3,x=Math.cos(a)*arm,y=Math.sin(a)*arm;ctx.moveTo(-x,-y);ctx.lineTo(x,y)}
+ ctx.stroke();
+}
 function tilt(age,seed,strength){
  if(reduced||age<0||age>650)return 0;
  return Math.sin(age/85)*Math.exp(-age/190)*(seed>.5?1:-1)*.42*strength;
@@ -73,7 +81,7 @@ function stroke(dt,now){
  const sx=brush.x-px,sy=brush.y-py,seg=Math.hypot(sx,sy);
  // Thickness follows speed: a slow drag is a fine line, a fast sweep swells wide.
  brush.v+=(seg/Math.max(dt,1)-brush.v)*Math.min(1,dt/70);
- const min=w<600?10:13,max=w<600?44:64,k=Math.min(1,brush.v/2.4);
+ const min=w<600?8:10,max=w<600?30:42,k=Math.min(1,brush.v/2.4);
  const target=min+(max-min)*k*k*(3-2*k);
  const w0=brush.w;
  brush.w+=(target-brush.w)*Math.min(1,dt/90);
@@ -84,7 +92,7 @@ function stroke(dt,now){
  brush.len+=seg;
  return true;
 }
-function frame(now){raf=0;const dt=Math.min(now-(last||now-16),40);last=now;ctx.clearRect(0,0,w,h);ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`12px ${FONT}`;let unsettled=stroke(dt,now);
+function frame(now){raf=0;const dt=Math.min(now-(last||now-16),40);last=now;ctx.clearRect(0,0,w,h);let unsettled=stroke(dt,now);
 bursts=bursts.filter(b=>now-b.t<900);
 for(let i=0;i<cells.length;i++){
  const c=cells[i];
@@ -93,14 +101,14 @@ for(let i=0;i<cells.length;i++){
   if(c.wet>c.e){if(c.e<.065&&c.wet>=.065)c.entered=now;c.e+=(c.wet-c.e)*Math.min(1,dt/45)}else c.e=c.wet;
   c.wet=Math.max(0,c.wet-dt/c.decay);unsettled=true;
  }
- let char=c.e>.025?chars[Math.min(6,Math.floor(c.e*8))]:null;
+ let level=c.e>.025?Math.min(1,(c.e-.025)*1.15):null;
  let color=c.e>.001?paint(c):ink(c.x,c.y,0),alpha=c.e>.001?1:REST_ALPHA;
  const click=clickAt(c.x,c.y,now);
  if(click){
-  char=clickGlyph(click,c.x,c.y,now,c.x===click.x&&c.y===click.y);
+  level=SPARK_LEVEL[clickGlyph(click,c.x,c.y,now,c.x===click.x&&c.y===click.y)]??.1;
   color=ink(c.x,c.y,Math.min(.85,(900-(now-click.t))/380)*(1-Math.hypot(c.x-click.x,c.y-click.y)/78));alpha=1;
  }
- ctx.globalAlpha=alpha;ctx.fillStyle=color;
+ ctx.globalAlpha=alpha;ctx.fillStyle=ctx.strokeStyle=color;
  // Rotate around each cell's anchor. Clicks retain their slots.
  const age=now-(c.entered??-10000);
  const angle=click?0:tilt(age,c.seed,Math.min(1,c.e*3));
@@ -108,16 +116,10 @@ for(let i=0;i<cells.length;i++){
  const tx=c.ux*force,ty=c.uy*force;
  c.dx+=(tx-c.dx)*Math.min(1,dt/55);c.dy+=(ty-c.dy)*Math.min(1,dt/55);
  if(Math.abs(c.dx-tx)+Math.abs(c.dy-ty)>.02||(!reduced&&age<650&&c.e>.025))unsettled=true;
- if(char){
+ if(level!=null){
   ctx.save();ctx.translate(c.x+(click?0:c.dx),c.y+(click?0:c.dy));ctx.rotate(angle);
-  if(click){
-   const center=c.x===click.x&&c.y===click.y,age=now-click.t,distance=Math.hypot(c.x-click.x,c.y-click.y);
-   const baseSize=center?15:12;
-   const settling=Math.max(0,Math.min(1,(age-520)/380));
-   ctx.font=`400 ${baseSize-(baseSize-12)*settling}px ${FONT}`;
-   if(!reduced&&center){const scale=age<75?.9:1+Math.sin(Math.min(1,(age-75)/180)*Math.PI)*.05;ctx.scale(scale,scale)}
-  }
-  ctx.fillText(SPARK[char]||char,0,0);ctx.restore();
+  if(!reduced&&click&&c.x===click.x&&c.y===click.y){const age=now-click.t,scale=age<75?.9:1+Math.sin(Math.min(1,(age-75)/180)*Math.PI)*.08;ctx.scale(scale,scale)}
+  mark(level,c.seed*Math.PI);ctx.restore();
  }else{ctx.beginPath();ctx.arc(c.x+c.dx,c.y+c.dy,.72,0,Math.PI*2);ctx.fill()}
  ctx.globalAlpha=1;
 }
@@ -129,5 +131,5 @@ function move(e){pointer.x=e.clientX;pointer.y=e.clientY;pointer.active=true;poi
 addEventListener('pointermove',move,{passive:true});addEventListener('pointerdown',e=>{if(e.button!==0)return;move(e);down=onSheet(e)?null:{x:e.clientX,y:e.clientY,drag:false}},{passive:true});
 addEventListener('pointerup',e=>{if(down&&!down.drag&&!onSheet(e)){poke(e.clientX,e.clientY)}down=null;if(e.pointerType!=='mouse'){pointer.active=false;wake()}},{passive:true});
 function leave(){pointer.active=false;down=null;wake()}document.documentElement.addEventListener('pointerleave',()=>{if(!down)leave()});addEventListener('pointercancel',leave);addEventListener('blur',leave);
-motion.addEventListener('change',e=>{reduced=e.matches;wake()});window.addEventListener('resize',resize);Promise.all(['"Asterisk Symbols"','"Commit Mono"'].map(f=>document.fonts.load(`400 12px ${f}`,'✳.'))).then(wake,wake);document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;last=0;pointer.active=false}else wake()});resize();
+motion.addEventListener('change',e=>{reduced=e.matches;wake()});window.addEventListener('resize',resize);document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;last=0;pointer.active=false}else wake()});resize();
 })();
