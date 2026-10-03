@@ -100,39 +100,55 @@ function stroke(dt,now){
  brush.len+=seg;
  return true;
 }
-// Foreground trail: over the sheet only, the last few grid cells the cursor crossed (same grid as the
-// background, so the two read as one surface). Newest is ⁕ at full strength; the rest step down the ramp
-// and fade. No resting dots up here.
+// Foreground fairy dust: over the sheet only, on the background's grid so the two read as one surface.
+// The cell under the cursor holds a ⁕ that breathes, turns and twinkles; crossing cells sheds a few soft
+// sparkles that float up, sway, twinkle and shrink back down the ramp (✳ ✦ + • ·) before vanishing.
+// It runs its own small loop, sleeps when nothing is left, and holds still under reduced motion.
 const fgCanvas=document.querySelector('.ascii-fg canvas'),fctx=fgCanvas&&fgCanvas.getContext('2d');
-const TRAIL=[{level:.95,alpha:1},{level:.78,alpha:.3},{level:.62,alpha:.22},{level:.45,alpha:.15},{level:.28,alpha:.1},{level:.1,alpha:.06}];
-let trail=[];
+let dust=[],head=null,fgRaf=0,fgLast=0;
 function overSheet(x,y){if(!sheet)return false;const r=sheet.getBoundingClientRect();return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom}
-function track(x,y,now){
- if(!fctx||!overSheet(x,y))return;
- const col=Math.round((x-space/2)/space),row=Math.round((y-space/2)/space),head=trail[0];
- if(head&&head.col===col&&head.row===row){head.t=now;return}
- trail.unshift({col,row,t:now,seed:hash(col*31+row*17)});trail.length=Math.min(trail.length,TRAIL.length);
+function cellAt(x,y){const col=Math.round((x-space/2)/space),row=Math.round((y-space/2)/space);return {col,row,x:space/2+col*space,y:space/2+row*space}}
+function fgWake(){if(fctx&&!fgRaf)fgRaf=requestAnimationFrame(fgFrame)}
+function track(x,y){
+ if(!fctx)return;
+ if(!overSheet(x,y)){head=null;fgWake();return}
+ const c=cellAt(x,y),now=performance.now();
+ if(!head||head.col!==c.col||head.row!==c.row){
+  if(head&&!reduced){const n=1+(Math.random()<.45);for(let k=0;k<n;k++)dust.push({
+   x:head.x+(Math.random()-.5)*6,y:head.y+(Math.random()-.5)*6,t:now,life:900+Math.random()*700,
+   level:.62+Math.random()*.25,alpha:.22+Math.random()*.14,vy:-(.008+Math.random()*.014),
+   sway:3+Math.random()*5,phase:Math.random()*6.28,spin:(Math.random()-.5)*.004,seed:Math.random()})}
+  if(dust.length>48)dust.splice(0,dust.length-48);
+  head={...c,born:now,seed:hash(c.col*31+c.row*17)};
+ }
+ fgWake();
 }
-function drawTrail(now){
- if(!fctx)return false;
+function fgFrame(now){
+ fgRaf=0;const dt=Math.min(now-(fgLast||now-16),40);fgLast=now;
  fctx.clearRect(0,0,w,h);
- if(!pointer.active||!overSheet(pointer.x,pointer.y))trail=trail.filter(c=>now-c.t<450);
- // Older entries drain away once the cursor rests, so a still cursor keeps only its own mark.
- trail=trail.filter((c,i)=>i===0||now-c.t<700);
- if(!trail.length)return false;
+ dust=dust.filter(p=>now-p.t<p.life);
+ if(!head&&!dust.length){fgLast=0;return}
  const r=sheet.getBoundingClientRect();
  fctx.save();fctx.beginPath();fctx.rect(r.left,r.top,r.width,r.height);fctx.clip();
  fctx.fillStyle=fctx.strokeStyle=MUTED;
- trail.forEach((c,i)=>{
-  const fade=i===0&&pointer.active&&overSheet(pointer.x,pointer.y)?1:Math.max(0,1-(now-c.t)/(i?700:450));
-  fctx.globalAlpha=TRAIL[i].alpha*fade;if(fctx.globalAlpha<=.01)return;
-  fctx.save();fctx.translate(space/2+c.col*space,space/2+c.row*space);mark(TRAIL[i].level,c.seed*Math.PI,fctx);fctx.restore();
- });
- fctx.restore();
- // A lone mark under a resting cursor is static, so the loop can sleep.
- return trail.length>1||!(pointer.active&&overSheet(pointer.x,pointer.y));
+ for(const p of dust){
+  const k=(now-p.t)/p.life,age=now-p.t;
+  p.y+=p.vy*dt;
+  const x=p.x+Math.sin(age/260+p.phase)*p.sway*k,twinkle=.55+.45*Math.sin(age/90+p.phase*3);
+  fctx.globalAlpha=p.alpha*(1-k)*twinkle;
+  fctx.save();fctx.translate(x,p.y);fctx.rotate(age*p.spin);mark(p.level*(1-k*.9),p.seed*Math.PI,fctx);fctx.restore();
+ }
+ if(head){
+  const age=now-head.born,still=reduced?0:1;
+  const breathe=1+still*.07*Math.sin(now/420+head.seed*6),twinkle=1-still*.18*(.5+.5*Math.sin(now/230+head.seed*9));
+  const pop=reduced?1:.75+.25*ease(Math.min(1,age/180));
+  fctx.globalAlpha=twinkle;
+  fctx.save();fctx.translate(head.x,head.y);fctx.scale(breathe*pop,breathe*pop);fctx.rotate(still*now/2600);mark(.95,head.seed*Math.PI,fctx);fctx.restore();
+ }
+ fctx.restore();fctx.globalAlpha=1;
+ if(dust.length||(head&&!reduced))fgRaf=requestAnimationFrame(fgFrame);else fgLast=0;
 }
-function frame(now){raf=0;const dt=Math.min(now-(last||now-16),40);last=now;ctx.clearRect(0,0,w,h);let unsettled=stroke(dt,now);if(pointer.active)track(pointer.x,pointer.y,now);if(drawTrail(now))unsettled=true;
+function frame(now){raf=0;const dt=Math.min(now-(last||now-16),40);last=now;ctx.clearRect(0,0,w,h);let unsettled=stroke(dt,now);
 bursts=bursts.filter(b=>now-b.t<900);
 for(let i=0;i<cells.length;i++){
  const c=cells[i];
@@ -166,10 +182,10 @@ for(let i=0;i<cells.length;i++){
 if(bursts.length||unsettled||now<until)raf=requestAnimationFrame(frame);else last=0;
 }
 const onSheet=e=>sheet&&sheet.contains(e.target);
-function move(e){pointer.x=e.clientX;pointer.y=e.clientY;pointer.active=true;pointer.moved=performance.now();if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>9)down.drag=true;wake()}
+function move(e){pointer.x=e.clientX;pointer.y=e.clientY;track(e.clientX,e.clientY);pointer.active=true;pointer.moved=performance.now();if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>9)down.drag=true;wake()}
 // Listen on the window so the sheet stays fully interactive; clicks only spark on the surround.
 addEventListener('pointermove',move,{passive:true});addEventListener('pointerdown',e=>{if(e.button!==0)return;move(e);down=onSheet(e)?null:{x:e.clientX,y:e.clientY,drag:false}},{passive:true});
 addEventListener('pointerup',e=>{if(down&&!down.drag&&!onSheet(e)){poke(e.clientX,e.clientY)}down=null;if(e.pointerType!=='mouse'){pointer.active=false;wake()}},{passive:true});
-function leave(){pointer.active=false;down=null;wake()}document.documentElement.addEventListener('pointerleave',()=>{if(!down)leave()});addEventListener('pointercancel',leave);addEventListener('blur',leave);
+function leave(){pointer.active=false;down=null;head=null;fgWake();wake()}document.documentElement.addEventListener('pointerleave',()=>{if(!down)leave()});addEventListener('pointercancel',leave);addEventListener('blur',leave);
 motion.addEventListener('change',e=>{reduced=e.matches;wake()});window.addEventListener('resize',resize);document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;last=0;pointer.active=false}else wake()});resize();
 })();
