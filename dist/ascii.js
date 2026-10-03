@@ -4,9 +4,11 @@ const hero=document.querySelector('.ascii-bg'),canvas=hero.querySelector('canvas
 const motion=matchMedia('(prefers-reduced-motion: reduce)');let reduced=motion.matches;
 // Only the portfolio's palette tokens, kept low-contrast on the surround: faint muted dots at rest,
 // accent paint with a muted rim (no blended in-between colors).
-const chars=['.',':','+','*','#','%','@'];
+// Density ramp from the site's asterisk font, ordered by ink coverage; U+FE0E keeps them out of emoji.
+const chars=['.','✳\uFE0E','✲\uFE0E','✼\uFE0E','✻\uFE0E','✾\uFE0E','✽\uFE0E'];
+const SPARK={'*':'✻\uFE0E','×':'✽\uFE0E','+':'✳\uFE0E'};
 let w=0,h=0,cells=[],bursts=[],raf=0,last=0,until=0;
-const FONT='"Commit Mono",ui-monospace,monospace';
+const FONT='"Asterisk Symbols","Commit Mono",ui-monospace,monospace';
 const pointer={x:-999,y:-999,active:false,moved:0};let down=null;
 // The brush tip trails the pointer slightly, so quick flicks bend into curves instead of corners.
 const brush={x:0,y:0,down:false,w:0,v:0,len:0,id:0};let cols=0,rows=0,space=18;
@@ -66,7 +68,7 @@ function dab(x,y,r,ux,uy){
 function stroke(dt,now){
  if(!pointer.active){brush.down=false;return false}
  if(!brush.down){Object.assign(brush,{x:pointer.x,y:pointer.y,down:true,w:0,v:0,len:0,id:brush.id+1})}
- const px=brush.x,py=brush.y,follow=Math.min(1,dt/60);
+ const px=brush.x,py=brush.y,follow=Math.min(1,dt/20);
  brush.x+=(pointer.x-brush.x)*follow;brush.y+=(pointer.y-brush.y)*follow;
  const sx=brush.x-px,sy=brush.y-py,seg=Math.hypot(sx,sy);
  // Thickness follows speed: a slow drag is a fine line, a fast sweep swells wide.
@@ -82,7 +84,7 @@ function stroke(dt,now){
  brush.len+=seg;
  return true;
 }
-function frame(now){raf=0;const dt=Math.min(now-(last||now-16),40);last=now;ctx.clearRect(0,0,w,h);ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='11px "Commit Mono",ui-monospace,monospace';let unsettled=stroke(dt,now);
+function frame(now){raf=0;const dt=Math.min(now-(last||now-16),40);last=now;ctx.clearRect(0,0,w,h);ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`12px ${FONT}`;let unsettled=stroke(dt,now);
 bursts=bursts.filter(b=>now-b.t<900);
 for(let i=0;i<cells.length;i++){
  const c=cells[i];
@@ -110,12 +112,12 @@ for(let i=0;i<cells.length;i++){
   ctx.save();ctx.translate(c.x+(click?0:c.dx),c.y+(click?0:c.dy));ctx.rotate(angle);
   if(click){
    const center=c.x===click.x&&c.y===click.y,age=now-click.t,distance=Math.hypot(c.x-click.x,c.y-click.y);
-   const baseSize=center?13:11;
+   const baseSize=center?15:12;
    const settling=Math.max(0,Math.min(1,(age-520)/380));
-   ctx.font=`400 ${baseSize-(baseSize-11)*settling}px ${FONT}`;
+   ctx.font=`400 ${baseSize-(baseSize-12)*settling}px ${FONT}`;
    if(!reduced&&center){const scale=age<75?.9:1+Math.sin(Math.min(1,(age-75)/180)*Math.PI)*.05;ctx.scale(scale,scale)}
   }
-  ctx.fillText(char,0,0);ctx.restore();
+  ctx.fillText(SPARK[char]||char,0,0);ctx.restore();
  }else{ctx.beginPath();ctx.arc(c.x+c.dx,c.y+c.dy,.72,0,Math.PI*2);ctx.fill()}
  ctx.globalAlpha=1;
 }
@@ -127,5 +129,5 @@ function move(e){pointer.x=e.clientX;pointer.y=e.clientY;pointer.active=true;poi
 addEventListener('pointermove',move,{passive:true});addEventListener('pointerdown',e=>{if(e.button!==0)return;move(e);down=onSheet(e)?null:{x:e.clientX,y:e.clientY,drag:false}},{passive:true});
 addEventListener('pointerup',e=>{if(down&&!down.drag&&!onSheet(e)){poke(e.clientX,e.clientY)}down=null;if(e.pointerType!=='mouse'){pointer.active=false;wake()}},{passive:true});
 function leave(){pointer.active=false;down=null;wake()}document.documentElement.addEventListener('pointerleave',()=>{if(!down)leave()});addEventListener('pointercancel',leave);addEventListener('blur',leave);
-motion.addEventListener('change',e=>{reduced=e.matches;wake()});window.addEventListener('resize',resize);document.fonts.load(`400 11px ${FONT}`).then(wake,()=>{});document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;last=0;pointer.active=false}else wake()});resize();
+motion.addEventListener('change',e=>{reduced=e.matches;wake()});window.addEventListener('resize',resize);Promise.all(['"Asterisk Symbols"','"Commit Mono"'].map(f=>document.fonts.load(`400 12px ${f}`,'✳.'))).then(wake,wake);document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;last=0;pointer.active=false}else wake()});resize();
 })();
