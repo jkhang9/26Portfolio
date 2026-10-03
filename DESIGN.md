@@ -8,7 +8,7 @@
 - Use exactly these five UI palette tokens: surround #565c3a, paper #f4f3e7, ink #41482d, muted #777965, accent #c1c7a5. Apply them to text, surfaces, borders, icons, and interaction states. Photography is not recolored to fit the UI palette.
 - Historical palette/type comparison pages are exploration artifacts, not the active portfolio design system.
 - Over the sheet, the background brush is mirrored (.ascii-fg): painted cells under the sheet are drawn again on top in the surround green at full opacity, the inverse of the light-on-green background. Resting dots are not mirrored.
-- The sheet carries a faint ink-tinted paper grain (.sheet::before) beneath its content; the paper color itself stays the single paper token.
+- The sheet carries an ink-tinted paper texture (.sheet::before): fine tooth, short fibres and soft blotches beneath its content; the paper color itself stays the single paper token.
 - Preserve the full-viewport paper, internal scrolling, top index tabs, and folded About layout.
 - Social icons are filled and use the same muted color as the vertical copyright. Footer asterisk uses accent.
 
