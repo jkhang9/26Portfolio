@@ -100,62 +100,13 @@ function stroke(dt,now){
  brush.len+=seg;
  return true;
 }
-// Foreground sparkle grid: over the sheet only, on every other background grid point so the two layers
-// stay aligned. Moving the cursor lights a loose scatter of cells around its path — wider and denser the
-// faster it moves. Each cell pops in as one of five marks (·  small ○  ○  *  ✳) at its own size and
-// strength, then steps down that ladder in place as it fades. Nothing stays under a resting cursor.
-// Its own small loop sleeps when empty; it is off under reduced motion.
+// Foreground mirror: the same brush, seen through the sheet. Painted cells that sit under the sheet are
+// drawn again on a canvas above it in the surround green at full opacity (the inverse of the light-on-green
+// background). Resting dots are not mirrored, so the paper stays clean until it is touched.
 const fgCanvas=document.querySelector('.ascii-fg canvas'),fctx=fgCanvas&&fgCanvas.getContext('2d');
-let lit=new Map(),fgRaf=0,prev=null;
-const SHAPES=5;
-function overSheet(x,y){if(!sheet)return false;const r=sheet.getBoundingClientRect();return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom}
-function fgWake(){if(fctx&&!fgRaf)fgRaf=requestAnimationFrame(fgFrame)}
-function sparkle(g,shape,lw){
- g.lineWidth=lw;g.lineCap='round';g.beginPath();
- if(shape===0){g.arc(0,0,.9,0,Math.PI*2);g.fill();return}                    // ·
- if(shape===1||shape===2){g.arc(0,0,shape===1?1.6:2.7,0,Math.PI*2);g.stroke();return} // ○
- const n=shape===3?3:4,len=shape===3?2.6:4.3;                                  // *  ✳
- for(let k=0;k<n;k++){const a=Math.PI/2+k*Math.PI/n,x=Math.cos(a)*len,y=Math.sin(a)*len;g.moveTo(-x,-y);g.lineTo(x,y)}
- g.stroke();
-}
-function track(x,y){
- if(!fctx||reduced)return;
- const now=performance.now();
- if(!overSheet(x,y)){prev=null;return}
- const dist=prev?Math.hypot(x-prev.x,y-prev.y):0,dt=prev?Math.max(8,now-prev.t):16;
- prev={x,y,t:now};if(dist<1)return;
- const speed=Math.min(1,dist/dt/1.4),step=space*2,reach=(1.1+speed*1.2)*step,chance=.06+speed*.2;
- const c0=Math.round((x-space/2)/step),r0=Math.round((y-space/2)/step),span=Math.ceil(reach/step);
- for(let row=r0-span;row<=r0+span;row++)for(let col=c0-span;col<=c0+span;col++){
-  const cx=space/2+col*step,cy=space/2+row*step,d=Math.hypot(cx-x,cy-y);if(d>reach)continue;
-  const key=col+','+row,old=lit.get(key);if(old&&now-old.t<old.life*.5)continue;
-  const near=1-d/reach;if(Math.random()>chance*(.35+near))continue;
-  // Bigger marks land close to the cursor and on fast strokes; the edges get dots and small rings.
-  const shape=Math.max(0,Math.min(SHAPES-1,Math.floor(near*2+speed*1.1+Math.random()*1.9)));
-  lit.set(key,{x:cx,y:cy,t:now,shape,life:650+Math.random()*650+speed*300,size:.8+Math.random()*.5,
-   alpha:.3+near*.5+Math.random()*.2,color:Math.random()<.22?INK_C:MUTED,tilt:(Math.random()-.5)*.5});
- }
- fgWake();
-}
-const INK_C='#41482d';
-function fgFrame(now){
- fgRaf=0;fctx.clearRect(0,0,w,h);
- for(const [k,c] of lit)if(now-c.t>=c.life)lit.delete(k);
- if(!lit.size)return;
- const r=sheet.getBoundingClientRect();
- fctx.save();fctx.beginPath();fctx.rect(r.left,r.top,r.width,r.height);fctx.clip();
- for(const c of lit.values()){
-  const age=now-c.t,k=age/c.life,pop=ease(Math.min(1,age/90));
-  const shape=Math.max(0,c.shape-Math.floor(k*(c.shape+1)*.9));   // step down the ladder as it fades
-  fctx.globalAlpha=Math.min(1,c.alpha*Math.pow(1-k,1.1)*pop);if(fctx.globalAlpha<.02)continue;
-  fctx.fillStyle=fctx.strokeStyle=c.color;
-  const sc=c.size*(.6+.4*pop);
-  fctx.save();fctx.translate(c.x,c.y);fctx.rotate(c.tilt);fctx.scale(sc,sc);sparkle(fctx,shape,.85/sc);fctx.restore();
- }
- fctx.restore();fctx.globalAlpha=1;
- fgRaf=requestAnimationFrame(fgFrame);
-}
+const SURROUND='#565c3a';
 function frame(now){raf=0;const dt=Math.min(now-(last||now-16),40);last=now;ctx.clearRect(0,0,w,h);let unsettled=stroke(dt,now);
+if(fctx){fctx.clearRect(0,0,w,h);const r=sheet.getBoundingClientRect();fctx.save();fctx.beginPath();fctx.rect(r.left,r.top,r.width,r.height);fctx.clip();fctx.fillStyle=fctx.strokeStyle=SURROUND}
 bursts=bursts.filter(b=>now-b.t<900);
 for(let i=0;i<cells.length;i++){
  const c=cells[i];
@@ -182,17 +133,20 @@ for(let i=0;i<cells.length;i++){
  if(level!=null){
   ctx.save();ctx.translate(c.x+(click?0:c.dx),c.y+(click?0:c.dy));ctx.rotate(angle);
   if(!reduced&&click&&c.x===click.x&&c.y===click.y){const age=now-click.t,scale=age<75?.9:1+Math.sin(Math.min(1,(age-75)/180)*Math.PI)*.08;ctx.scale(scale,scale)}
-  mark(level,c.seed*Math.PI);ctx.restore();
+  mark(level,c.seed*Math.PI);
+  if(fctx){fctx.setTransform(ctx.getTransform());mark(level,c.seed*Math.PI,fctx)}
+  ctx.restore();
  }else{ctx.beginPath();ctx.arc(c.x+c.dx,c.y+c.dy,.72,0,Math.PI*2);ctx.fill()}
  ctx.globalAlpha=1;
 }
+if(fctx){fctx.restore()}
 if(bursts.length||unsettled||now<until)raf=requestAnimationFrame(frame);else last=0;
 }
 const onSheet=e=>sheet&&sheet.contains(e.target);
-function move(e){pointer.x=e.clientX;pointer.y=e.clientY;track(e.clientX,e.clientY);pointer.active=true;pointer.moved=performance.now();if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>9)down.drag=true;wake()}
+function move(e){pointer.x=e.clientX;pointer.y=e.clientY;pointer.active=true;pointer.moved=performance.now();if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>9)down.drag=true;wake()}
 // Listen on the window so the sheet stays fully interactive; clicks only spark on the surround.
 addEventListener('pointermove',move,{passive:true});addEventListener('pointerdown',e=>{if(e.button!==0)return;move(e);down=onSheet(e)?null:{x:e.clientX,y:e.clientY,drag:false}},{passive:true});
 addEventListener('pointerup',e=>{if(down&&!down.drag&&!onSheet(e)){poke(e.clientX,e.clientY)}down=null;if(e.pointerType!=='mouse'){pointer.active=false;wake()}},{passive:true});
-function leave(){pointer.active=false;down=null;prev=null;wake()}document.documentElement.addEventListener('pointerleave',()=>{if(!down)leave()});addEventListener('pointercancel',leave);addEventListener('blur',leave);
+function leave(){pointer.active=false;down=null;wake()}document.documentElement.addEventListener('pointerleave',()=>{if(!down)leave()});addEventListener('pointercancel',leave);addEventListener('blur',leave);
 motion.addEventListener('change',e=>{reduced=e.matches;wake()});window.addEventListener('resize',resize);document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;last=0;pointer.active=false}else wake()});resize();
 })();
