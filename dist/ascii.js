@@ -2,7 +2,8 @@
 // Interactive ASCII background (from -ASCII-001-Hero v2), painted on the surround behind the sheet.
 const hero=document.querySelector('.ascii-bg'),canvas=hero.querySelector('canvas'),ctx=canvas.getContext('2d'),sheet=document.querySelector('.sheet');
 const motion=matchMedia('(prefers-reduced-motion: reduce)');let reduced=motion.matches;
-// Only the portfolio's palette tokens: muted dots at rest, paper paint with an accent rim (no blended in-between colors).
+// Only the portfolio's palette tokens, kept low-contrast on the surround: faint muted dots at rest,
+// accent paint with a muted rim (no blended in-between colors).
 const chars=['.',':','+','*','#','%','@'];
 let w=0,h=0,cells=[],bursts=[],raf=0,last=0,until=0;
 const FONT='"Commit Mono",ui-monospace,monospace';
@@ -13,10 +14,10 @@ const hash=n=>{const a=Math.sin(n*127.1+311.7)*43758.5453;return a-Math.floor(a)
 function wake(){until=performance.now()+1000;if(!raf)raf=requestAnimationFrame(frame)}
 function resize(){w=hero.clientWidth;h=hero.clientHeight;const d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(w*d);canvas.height=Math.round(h*d);ctx.setTransform(d,0,0,d,0,0);cells=[];space=w<600?16:18;cols=Math.ceil((w-space/2)/space);rows=Math.ceil((h-space/2)/space);for(let y=space/2;y<h;y+=space)for(let x=space/2;x<w;x+=space){const id=cells.length;cells.push({x,y,e:0,dx:0,dy:0,ux:1,uy:0,wet:0,rim:1,seed:hash(id),decay:900+hash(id+17)*1100})}brush.down=false;wake()}
 
-const PAPER='#eeeede',ACCENT='#c1c7a5',MUTED='#777965';
-function ink(x,y,energy){return energy<=.001?MUTED:energy>.45?PAPER:ACCENT}
-// The stroke core is paper; its outer rim and drying tail fall back to accent.
-function paint(c){return c.rim<.6&&c.e>.3?PAPER:ACCENT}
+const ACCENT='#c1c7a5',MUTED='#777965',REST_ALPHA=.5;
+function ink(x,y,energy){return energy>.45?ACCENT:MUTED}
+// The stroke core is accent; its outer rim and drying tail fall back to muted.
+function paint(c){return c.rim<.6&&c.e>.3?ACCENT:MUTED}
 function tilt(age,seed,strength){
  if(reduced||age<0||age>650)return 0;
  return Math.sin(age/85)*Math.exp(-age/190)*(seed>.5?1:-1)*.42*strength;
@@ -91,11 +92,11 @@ for(let i=0;i<cells.length;i++){
   c.wet=Math.max(0,c.wet-dt/c.decay);unsettled=true;
  }
  let char=c.e>.025?chars[Math.min(6,Math.floor(c.e*8))]:null;
- let color=c.e>.001?paint(c):ink(c.x,c.y,0),alpha=1;
+ let color=c.e>.001?paint(c):ink(c.x,c.y,0),alpha=c.e>.001?1:REST_ALPHA;
  const click=clickAt(c.x,c.y,now);
  if(click){
   char=clickGlyph(click,c.x,c.y,now,c.x===click.x&&c.y===click.y);
-  color=ink(c.x,c.y,Math.min(.85,(900-(now-click.t))/380)*(1-Math.hypot(c.x-click.x,c.y-click.y)/78));
+  color=ink(c.x,c.y,Math.min(.85,(900-(now-click.t))/380)*(1-Math.hypot(c.x-click.x,c.y-click.y)/78));alpha=1;
  }
  ctx.globalAlpha=alpha;ctx.fillStyle=color;
  // Rotate around each cell's anchor. Clicks retain their slots.
