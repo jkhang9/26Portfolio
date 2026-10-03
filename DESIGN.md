@@ -5,8 +5,9 @@
 - Crimson Pro: editorial copy (24px, regular, 1.2, zero spacing); closing note (20px, regular, 1.3, zero spacing). All serif text is upright and no larger than 24px.
 - Commit Mono: metadata (12px, regular, 1.6, zero spacing).
 - The asterisk font is an icon asset, not a text family. Keep its glyphs monochrome.
-- Use exactly these five UI palette tokens: surround #565c3a, paper #eeeede, ink #41482d, muted #777965, accent #c1c7a5. Apply them to text, surfaces, borders, icons, and interaction states. Photography is not recolored to fit the UI palette.
+- Use exactly these five UI palette tokens: surround #565c3a, paper #f4f3e7, ink #41482d, muted #777965, accent #c1c7a5. Apply them to text, surfaces, borders, icons, and interaction states. Photography is not recolored to fit the UI palette.
 - Historical palette/type comparison pages are exploration artifacts, not the active portfolio design system.
+- The sheet carries a faint ink-tinted paper grain (.sheet::before) beneath its content; the paper color itself stays the single paper token.
 - Preserve the full-viewport paper, internal scrolling, top index tabs, and folded About layout.
 - Social icons are filled and use the same muted color as the vertical copyright. Footer asterisk uses accent.
 
