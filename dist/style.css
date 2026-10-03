@@ -14,7 +14,7 @@
  --type-note:400 20px/1.3 var(--serif);
  --type-meta:400 12px/1.6 var(--mono);
 }
-*{box-sizing:border-box}html{height:100%;overflow:hidden;overscroll-behavior:none}
+*{box-sizing:border-box}::selection{background:var(--accent);color:var(--ink)}html{height:100%;overflow:hidden;overscroll-behavior:none}
 body{--frame-gap:clamp(10px,1.5vw,22px);margin:0;width:100%;height:100vh;height:100dvh;min-height:0;overflow:hidden;overscroll-behavior:none;padding:78px var(--frame-gap) var(--frame-gap);background:var(--surround);color:var(--ink);font:var(--type-body);font-synthesis:none;letter-spacing:0}
 b,em,i,strong{font-weight:inherit;font-style:normal}button,a{color:inherit;-webkit-tap-highlight-color:transparent}button{font:var(--type-ui);letter-spacing:0;cursor:pointer}button:focus-visible,a:focus-visible{outline:2px solid var(--ink);outline-offset:4px}[hidden]{display:none!important}
 /* ASCII background: fills the viewport behind the sheet, visible only on the surround. */
@@ -33,9 +33,9 @@ b,em,i,strong{font-weight:inherit;font-style:normal}button,a{color:inherit;-webk
 .work-page{min-height:100%;display:flex;flex-direction:column;padding-bottom:4px}
 .work-selected{margin-top:auto;padding-top:56px}
 .work-hero{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:40px;align-items:start}
-.work-statement{margin:0;max-width:30em;font:var(--type-copy);color:var(--ink)}
-.work-roles{margin:0;display:grid;gap:22px;text-align:right}
-.work-roles dt{color:var(--muted)}.work-roles dd{margin:4px 0 0;font:var(--type-body)}
+.work-statement{margin:0;max-width:34em;font:var(--type-note);color:var(--ink)}
+.work-roles{margin:0;display:grid;gap:32px;text-align:right}
+.work-roles dt{color:var(--muted)}.work-roles dd{margin:8px 0 0;font:var(--type-body)}.work-roles dd+dd{margin-top:10px}
 .work-heading{margin:0 0 14px;color:var(--muted)}
 .work-strip{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}
 .work-card{display:block;color:inherit;text-decoration:none}
