@@ -7,7 +7,7 @@
 - The asterisk font is an icon asset, not a text family. Keep its glyphs monochrome.
 - Use exactly these five UI palette tokens: surround #565c3a, paper #f4f3e7, ink #41482d, muted #777965, accent #c1c7a5. Apply them to text, surfaces, borders, icons, and interaction states. Photography is not recolored to fit the UI palette.
 - Historical palette/type comparison pages are exploration artifacts, not the active portfolio design system.
-- Over the sheet, a foreground fairy-dust layer (.ascii-fg) is born on the background grid. Nothing stays under a resting cursor; movement sprays sparkles whose density, size, brightness and momentum follow cursor speed. Fast sparkles are thin sage ✳ (the footer asterisk), slow ones are small muted marks; all shrink through ✦ + • · and vanish. Off under reduced motion; no resting dots on the sheet.
+- Over the sheet, a foreground sparkle grid (.ascii-fg) uses every other background grid point. Moving the cursor lights a loose scatter of cells around its path, wider and denser with speed; each pops in as · small ○ ○ * or ✳ in muted or ink at its own size and strength, then steps down that ladder in place as it fades. Nothing stays under a resting cursor; off under reduced motion; no resting dots on the sheet.
 - The sheet carries a faint ink-tinted paper grain (.sheet::before) beneath its content; the paper color itself stays the single paper token.
 - Preserve the full-viewport paper, internal scrolling, top index tabs, and folded About layout.
 - Social icons are filled and use the same muted color as the vertical copyright. Footer asterisk uses accent.

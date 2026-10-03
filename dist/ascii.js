@@ -100,51 +100,57 @@ function stroke(dt,now){
  brush.len+=seg;
  return true;
 }
-// Foreground fairy dust: over the sheet only, born on the background's grid so the two read as one surface.
-// Nothing sits under a resting cursor. Movement sprays sparkles whose density, size, brightness and
-// momentum follow cursor speed: a slow drift leaves a few faint dots, a quick sweep throws a dense
-// trail of thin sage ✳ (the footer asterisk); slow sparkles are muted so they still read on paper that glide on, then shrink back through ✦ + • · and vanish.
-// It runs its own small loop, sleeps when empty, and is off under reduced motion.
+// Foreground sparkle grid: over the sheet only, on every other background grid point so the two layers
+// stay aligned. Moving the cursor lights a loose scatter of cells around its path — wider and denser the
+// faster it moves. Each cell pops in as one of five marks (·  small ○  ○  *  ✳) at its own size and
+// strength, then steps down that ladder in place as it fades. Nothing stays under a resting cursor.
+// Its own small loop sleeps when empty; it is off under reduced motion.
 const fgCanvas=document.querySelector('.ascii-fg canvas'),fctx=fgCanvas&&fgCanvas.getContext('2d');
-let dust=[],fgRaf=0,fgLast=0,prev=null,carry=0;
-const DUST_MAX=140;
+let lit=new Map(),fgRaf=0,prev=null;
+const SHAPES=5;
 function overSheet(x,y){if(!sheet)return false;const r=sheet.getBoundingClientRect();return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom}
 function fgWake(){if(fctx&&!fgRaf)fgRaf=requestAnimationFrame(fgFrame)}
+function sparkle(g,shape,lw){
+ g.lineWidth=lw;g.lineCap='round';g.beginPath();
+ if(shape===0){g.arc(0,0,.9,0,Math.PI*2);g.fill();return}                    // ·
+ if(shape===1||shape===2){g.arc(0,0,shape===1?1.6:2.7,0,Math.PI*2);g.stroke();return} // ○
+ const n=shape===3?3:4,len=shape===3?2.6:4.3;                                  // *  ✳
+ for(let k=0;k<n;k++){const a=Math.PI/2+k*Math.PI/n,x=Math.cos(a)*len,y=Math.sin(a)*len;g.moveTo(-x,-y);g.lineTo(x,y)}
+ g.stroke();
+}
 function track(x,y){
  if(!fctx||reduced)return;
  const now=performance.now();
- if(!overSheet(x,y)){prev=null;carry=0;return}
- if(!prev){prev={x,y,t:now};return}
- const dx=x-prev.x,dy=y-prev.y,dist=Math.hypot(dx,dy),dt=Math.max(8,now-prev.t);
- prev={x,y,t:now};if(dist<.5)return;
- const speed=Math.min(1,dist/dt/1.6),vx=dx/dt,vy=dy/dt;
- // Faster strokes drop sparkles more closely together.
- const gap=26-17*speed;carry+=dist;
- while(carry>=gap){
-  carry-=gap;const t=1-carry/dist,px=x-dx*(1-t),py=y-dy*(1-t);
-  const col=Math.round((px-space/2)/space),row=Math.round((py-space/2)/space),r=Math.random();
-  dust.push({x:space/2+col*space+(Math.random()-.5)*7,y:space/2+row*space+(Math.random()-.5)*7,t:now,
-   life:650+r*400+speed*450,size:.85+speed*.7+Math.random()*.4,color:speed<.35?MUTED:ACCENT,level:.5+speed*.3+Math.random()*.08,
-   alpha:.45+speed*.45,vx:vx*(.15+Math.random()*.25),vy:vy*(.15+Math.random()*.25)-.01,
-   phase:Math.random()*6.28,spin:(Math.random()-.5)*(.004+speed*.01),seed:Math.random()});
+ if(!overSheet(x,y)){prev=null;return}
+ const dist=prev?Math.hypot(x-prev.x,y-prev.y):0,dt=prev?Math.max(8,now-prev.t):16;
+ prev={x,y,t:now};if(dist<1)return;
+ const speed=Math.min(1,dist/dt/1.4),step=space*2,reach=(1.1+speed*1.2)*step,chance=.06+speed*.2;
+ const c0=Math.round((x-space/2)/step),r0=Math.round((y-space/2)/step),span=Math.ceil(reach/step);
+ for(let row=r0-span;row<=r0+span;row++)for(let col=c0-span;col<=c0+span;col++){
+  const cx=space/2+col*step,cy=space/2+row*step,d=Math.hypot(cx-x,cy-y);if(d>reach)continue;
+  const key=col+','+row,old=lit.get(key);if(old&&now-old.t<old.life*.5)continue;
+  const near=1-d/reach;if(Math.random()>chance*(.35+near))continue;
+  // Bigger marks land close to the cursor and on fast strokes; the edges get dots and small rings.
+  const shape=Math.max(0,Math.min(SHAPES-1,Math.floor(near*2+speed*1.1+Math.random()*1.9)));
+  lit.set(key,{x:cx,y:cy,t:now,shape,life:650+Math.random()*650+speed*300,size:.8+Math.random()*.5,
+   alpha:.3+near*.5+Math.random()*.2,color:Math.random()<.22?INK_C:MUTED,tilt:(Math.random()-.5)*.5});
  }
- if(dust.length>DUST_MAX)dust.splice(0,dust.length-DUST_MAX);
  fgWake();
 }
+const INK_C='#41482d';
 function fgFrame(now){
- fgRaf=0;const dt=Math.min(now-(fgLast||now-16),40);fgLast=now;
- fctx.clearRect(0,0,w,h);
- dust=dust.filter(p=>now-p.t<p.life);
- if(!dust.length){fgLast=0;return}
- const r=sheet.getBoundingClientRect(),drag=Math.exp(-dt/240);
+ fgRaf=0;fctx.clearRect(0,0,w,h);
+ for(const [k,c] of lit)if(now-c.t>=c.life)lit.delete(k);
+ if(!lit.size)return;
+ const r=sheet.getBoundingClientRect();
  fctx.save();fctx.beginPath();fctx.rect(r.left,r.top,r.width,r.height);fctx.clip();
- for(const p of dust){
-  const age=now-p.t,k=age/p.life;
-  p.vx*=drag;p.vy=p.vy*drag-.00002*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
-  const twinkle=.7+.3*Math.sin(age/70+p.phase);
-  fctx.globalAlpha=Math.min(1,p.alpha*Math.pow(1-k,1.3)*twinkle);if(fctx.globalAlpha<.02)continue;
-  fctx.fillStyle=fctx.strokeStyle=p.color;fctx.save();fctx.translate(p.x,p.y);fctx.rotate(age*p.spin);const sc=p.size*(1-.35*k);fctx.scale(sc,sc);
-  mark(Math.min(.8,p.level*Math.pow(1-k,.7)),p.seed*Math.PI,fctx,.75/sc);fctx.restore();
+ for(const c of lit.values()){
+  const age=now-c.t,k=age/c.life,pop=ease(Math.min(1,age/90));
+  const shape=Math.max(0,c.shape-Math.floor(k*(c.shape+1)*.9));   // step down the ladder as it fades
+  fctx.globalAlpha=Math.min(1,c.alpha*Math.pow(1-k,1.1)*pop);if(fctx.globalAlpha<.02)continue;
+  fctx.fillStyle=fctx.strokeStyle=c.color;
+  const sc=c.size*(.6+.4*pop);
+  fctx.save();fctx.translate(c.x,c.y);fctx.rotate(c.tilt);fctx.scale(sc,sc);sparkle(fctx,shape,.85/sc);fctx.restore();
  }
  fctx.restore();fctx.globalAlpha=1;
  fgRaf=requestAnimationFrame(fgFrame);
