@@ -34,8 +34,9 @@ b,em,i,strong{font-weight:inherit;font-style:normal}button,a{color:inherit;-webk
 .work-selected{margin-top:auto;padding-top:56px}
 .work-hero{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:40px;align-items:start}
 .work-statement{margin:0;max-width:34em;font:var(--type-note);color:var(--ink)}
-.work-roles{margin:0;display:grid;gap:32px;text-align:right}
-.work-roles dt{color:var(--muted)}.work-roles dd{margin:8px 0 0;font:var(--type-body)}.work-roles dd+dd{margin-top:10px}
+.work-roles{margin:0;display:grid;gap:44px;text-align:right}
+.work-roles dt{color:var(--muted)}/* Roles match the registration line (AN ONGOING STUDY…): 12px mono caps. */
+.work-roles dd{margin:12px 0 0;font:var(--type-meta);text-transform:uppercase;color:var(--ink)}.work-roles dd+dd{margin-top:16px}
 .work-heading{margin:0 0 14px;color:var(--muted)}
 .work-strip{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}
 .work-card{display:block;color:inherit;text-decoration:none}
