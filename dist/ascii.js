@@ -64,12 +64,23 @@ function sparkle(g,b,now){
   g.restore();
  }
 }
+// Grid cells within two of the click, minus the click itself and the wedge the arrow cursor covers
+// (down-right of its tip).
+const SPOTS=[];for(let r=-2;r<=2;r++)for(let c=-2;c<=2;c++)if(!(c>=0&&r>=0)&&Math.hypot(c,r)<=2.3)SPOTS.push([c,r]);
 function poke(x,y){
- // Snap to the dot grid. The arrow cursor covers the cells down-right of its tip, so the three marks take
- // the clicked cell's neighbours on a random open side (left, up, upper right or lower left).
+ // Snap to the dot grid and pick three cells that never line up, so the sparkle opens on several sides.
  const col=Math.round((x-space/2)/space),row=Math.round((y-space/2)/space);
- const open=[[-1,0],[-1,-1],[0,-1],[1,-1],[-1,1]];
- const k=Math.floor(Math.random()*open.length),pick=[open[k],open[(k+1)%open.length],open[(k+open.length-1)%open.length]];
+ const any=()=>SPOTS[Math.floor(Math.random()*SPOTS.length)];
+ let pick;
+ for(let n=0;n<40;n++){
+  const [a,b,c]=[any(),any(),any()];
+  const area=Math.abs((b[0]-a[0])*(c[1]-a[1])-(c[0]-a[0])*(b[1]-a[1]));             // 0 when collinear
+  const near=[[a,b],[b,c],[a,c]].every(([p,q])=>Math.hypot(p[0]-q[0],p[1]-q[1])>=1);    // no repeats
+  const sides=new Set([a,b,c].map(([dc,dr])=>Math.sign(dc)+','+Math.sign(dr))).size;  // spread around the click
+  if(area>=1&&near&&sides>=2){pick=[a,b,c];break}
+ }
+ pick=pick||[[-1,0],[0,-1],[-2,-1]];
+ pick.sort((p,q)=>Math.hypot(...p)-Math.hypot(...q));
  const mk=([dc,dr],d,s)=>({x:space/2+(col+dc)*space-x,y:space/2+(row+dr)*space-y,d,s:s+(Math.random()-.5)*3,peak:FINALS[Math.floor(Math.random()*FINALS.length)],seed:Math.random()*Math.PI});
  bursts.push({x,y,t:performance.now(),pts:[mk(pick[0],0,16),mk(pick[1],40,12),mk(pick[2],80,12)]});
  if(!raf)raf=requestAnimationFrame(frame);wake();
