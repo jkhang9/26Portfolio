@@ -39,24 +39,20 @@ function tilt(age,seed,strength){
  if(reduced||age<0||age>650)return 0;
  return Math.sin(age/85)*Math.exp(-age/190)*(seed>.5?1:-1)*.42*strength;
 }
-// Click sparkle: a drawn four-point star (✦) pops up at the click, turns a little and shrinks away,
-// with two tiny twinkles beside it. It is drawn on its own, not on the dot grid.
-const SPARK_LIFE=700;
-function star(g,x,y,r,turn){
- const q=r*.22;g.save();g.translate(x,y);g.rotate(turn);g.beginPath();g.moveTo(0,-r);
- g.quadraticCurveTo(q,-q,r,0);g.quadraticCurveTo(q,q,0,r);g.quadraticCurveTo(-q,q,-r,0);g.quadraticCurveTo(-q,-q,0,-r);
- g.fill();g.restore();
-}
+// Click sparkle (option C, "Scatter"): three small ASCII asterisks blink on around the click one after
+// another, each stepping . + * + . as it grows and fades. Plain Commit Mono text, not the dot grid.
+const SPARK_LIFE=900,SPARK_SEQ='.+*+.',SPARK_FONT='"Commit Mono",ui-monospace,monospace';
 function sparkle(g,b,now){
- const age=now-b.t;
- const pop=(t0,len)=>{const t=(age-t0)/len;return t<=0||t>=1?0:Math.sin(Math.PI*Math.pow(t,.7))};
- const turn=(age/SPARK_LIFE)*.6;
- const main=pop(0,SPARK_LIFE);if(main)star(g,b.x,b.y,10*main,turn);
- for(const s of b.sats){const k=pop(s.d,380);if(k)star(g,b.x+s.x,b.y+s.y,3.6*k,-turn)}
+ const age=now-b.t;g.textAlign='center';g.textBaseline='middle';
+ for(const p of b.pts){
+  const t=(age-p.d)/520;if(t<=0||t>=1)continue;
+  g.font=`400 ${(p.s*(.8+.4*Math.sin(Math.PI*t))).toFixed(1)}px ${SPARK_FONT}`;
+  g.fillText(SPARK_SEQ[Math.min(4,Math.floor(t*5))],b.x+p.x,b.y+p.y);
+ }
 }
 function poke(x,y){
  const a=Math.random()*Math.PI*2;
- bursts.push({x,y,t:performance.now(),sats:[{x:Math.cos(a)*15,y:Math.sin(a)*15,d:110},{x:Math.cos(a+2.4)*12,y:Math.sin(a+2.4)*12,d:200}]});wake();
+ bursts.push({x,y,t:performance.now(),pts:[{x:0,y:0,d:0,s:16},{x:Math.cos(a)*18,y:Math.sin(a)*14,d:120,s:12},{x:Math.cos(a+2.3)*16,y:Math.sin(a+2.3)*13,d:230,s:11}]});wake();
 }
 // One dab of the brush: a soft core with faint bristle streaks. It only sets how wet each
 // cell should be; the cell eases towards that level itself, so the paint flows in.
