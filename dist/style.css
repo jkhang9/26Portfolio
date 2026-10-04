@@ -59,6 +59,8 @@ b,em,i,strong{font-weight:inherit;font-style:normal}button,a{color:inherit;-webk
 .work-strip{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:40px}
 .work-card{position:relative;display:block;color:inherit;text-decoration:none}
 .work-card .placeholder{aspect-ratio:1/1}
+.work-thumb{display:block;width:100%;height:auto;aspect-ratio:1/1;object-fit:cover;border:1px solid var(--accent);background:var(--accent)}
+.work-card:hover .work-thumb{border-color:var(--muted)}
 .work-card:hover .placeholder,a.play-thumb:hover .placeholder{border-color:var(--muted)}
 .work-card:focus-visible,a.play-thumb:focus-visible{outline:1px solid var(--muted);outline-offset:3px}
 .play-grid{list-style:none;margin:0;padding:0;columns:2 280px;column-gap:24px}
