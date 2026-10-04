@@ -39,31 +39,30 @@ function tilt(age,seed,strength){
  if(reduced||age<0||age>650)return 0;
  return Math.sin(age/85)*Math.exp(-age/190)*(seed>.5?1:-1)*.42*strength;
 }
-// Click sparkle: three marks on the dot grid next to the click. Each races up · • + ✦ ✳ ⁕ to its own
-// final asterisk (picked from seventeen) and straight back down with no pause, about 0.35s in all.
+// Click sparkle: three marks on the dot grid next to the click. Like the brush trail, each mark follows a
+// continuous eased level and is drawn with the trail's own ramp (· • + ✦ ✳ ⁕, growing within each stage),
+// so the speed is even frame to frame. Near the peak it becomes its own final asterisk (one of seventeen).
 // U+FE0E asks for the text (not emoji) form; Asterisk Symbols covers ✱✲✳✻✼✽ and system symbol fonts the rest.
-const SPARK_LIFE=700,SPARK_FONT='"Asterisk Symbols","Apple Symbols","Segoe UI Symbol","Noto Sans Symbols 2","Noto Sans Symbols","DejaVu Sans","Commit Mono",sans-serif';
-const VS='︎',RAMP=['·','•','+','✦','✳','⁕'];
-const FINALS=['*','✱','✳','✲','✽','✻','✼','⁕','✣','✤','✥','✦','✧','✶','✷','✸','✵'];
-const STEP=20;
-function sparkGlyph(t,fin){
- // up: · • + ✦ ✳ ⁕, peak: final, down: ⁕ ✳ ✦ + • ·  (one STEP each)
- const i=Math.floor(t/STEP),n=RAMP.length;
- if(i<n)return[RAMP[i],.75+.25*i/n,1];
- if(i===n)return[fin,1,1];
- const j=i-n-1;if(j>=n)return null;
- return[RAMP[n-1-j],1-.25*j/n,1-.5*j/n];
+const SPARK_LIFE=900,SPARK_FONT='"Asterisk Symbols","Apple Symbols","Segoe UI Symbol","Noto Sans Symbols 2","Noto Sans Symbols","DejaVu Sans","Commit Mono",sans-serif';
+const VS='︎',FINALS=['*','✱','✳','✲','✽','✻','✼','⁕','✣','✤','✥','✦','✧','✶','✷','✸','✵'];
+const RISE=200,FALL=380,PEAK_AT=.86;
+const easeOut=t=>1-Math.pow(1-t,3),easeInOut=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+function sparkLevel(t){
+ if(t<0)return null;
+ if(t<RISE)return easeOut(t/RISE);
+ const k=(t-RISE)/FALL;return k>=1?null:1-easeInOut(k);
 }
 function sparkle(g,b,now){
- const age=now-b.t;g.textAlign='center';g.textBaseline='middle';
+ const age=now-b.t;
  for(const p of b.pts){
-  const t=age-p.d;if(t<0)continue;
-  const r=sparkGlyph(t,p.peak);if(!r)continue;
-  const [c,k,a]=r;g.globalAlpha=a;
-  g.font=`400 ${(p.s*k).toFixed(1)}px ${SPARK_FONT}`;
-  g.save();g.translate(b.x+p.x,b.y+p.y);g.rotate(p.tilt);g.fillText(c+VS,0,0);g.restore();
+  const lv=sparkLevel(age-p.d);if(lv==null||lv<.02)continue;
+  g.save();g.translate(b.x+p.x,b.y+p.y);
+  if(lv>=PEAK_AT){
+   const k=.8+.2*(lv-PEAK_AT)/(1-PEAK_AT);
+   g.textAlign='center';g.textBaseline='middle';g.font=`400 ${(p.s*k).toFixed(1)}px ${SPARK_FONT}`;g.fillText(p.peak+VS,0,0);
+  }else mark(Math.min(lv/PEAK_AT,.999),p.seed,g);
+  g.restore();
  }
- g.globalAlpha=1;
 }
 function poke(x,y){
  // Snap to the dot grid. The arrow cursor covers the cells down-right of its tip, so the three marks take
@@ -71,7 +70,7 @@ function poke(x,y){
  const col=Math.round((x-space/2)/space),row=Math.round((y-space/2)/space);
  const open=[[-1,0],[-1,-1],[0,-1],[1,-1],[-1,1]];
  const k=Math.floor(Math.random()*open.length),pick=[open[k],open[(k+1)%open.length],open[(k+open.length-1)%open.length]];
- const mk=([dc,dr],d,s)=>({x:space/2+(col+dc)*space-x,y:space/2+(row+dr)*space-y,d,s:s+(Math.random()-.5)*3,peak:FINALS[Math.floor(Math.random()*FINALS.length)],tilt:0});
+ const mk=([dc,dr],d,s)=>({x:space/2+(col+dc)*space-x,y:space/2+(row+dr)*space-y,d,s:s+(Math.random()-.5)*3,peak:FINALS[Math.floor(Math.random()*FINALS.length)],seed:Math.random()*Math.PI});
  bursts.push({x,y,t:performance.now(),pts:[mk(pick[0],0,16),mk(pick[1],40,12),mk(pick[2],80,12)]});
  if(!raf)raf=requestAnimationFrame(frame);wake();
 }
@@ -145,7 +144,7 @@ for(let i=0;i<cells.length;i++){
  ctx.globalAlpha=1;
 }
 // Sparkles sit on top of the dots: accent on the surround, surround green on the sheet.
-if(bursts.length){ctx.globalAlpha=1;ctx.fillStyle=ACCENT;for(const b of bursts)sparkle(ctx,b,now);if(fctx){fctx.globalAlpha=1;fctx.fillStyle=SURROUND;for(const b of bursts)sparkle(fctx,b,now)}}
+if(bursts.length){ctx.globalAlpha=1;ctx.fillStyle=ctx.strokeStyle=ACCENT;for(const b of bursts)sparkle(ctx,b,now);if(fctx){fctx.globalAlpha=1;fctx.fillStyle=fctx.strokeStyle=SURROUND;for(const b of bursts)sparkle(fctx,b,now)}}
 if(fctx){fctx.restore()}
 if(bursts.length||unsettled||now<until)raf=requestAnimationFrame(frame);else last=0;
 }
