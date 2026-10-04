@@ -60,29 +60,27 @@ function sparkle(g,b,now){
   if(lv>=PEAK_AT){
    const k=.8+.2*(lv-PEAK_AT)/(1-PEAK_AT);
    g.textAlign='center';g.textBaseline='middle';g.font=`400 ${(p.s*k).toFixed(1)}px ${SPARK_FONT}`;g.fillText(p.peak+VS,0,0);
-  }else mark(Math.min(lv/PEAK_AT,.999),p.seed,g);
+  }else{const z=p.s/14;g.scale(z,z);mark(Math.min(lv/PEAK_AT,.999),p.seed,g,.75/z)}
   g.restore();
  }
 }
-// Grid cells within two of the click, minus the click itself and the wedge the arrow cursor covers
-// (down-right of its tip).
-const SPOTS=[];for(let r=-2;r<=2;r++)for(let c=-2;c<=2;c++)if(!(c>=0&&r>=0)&&Math.hypot(c,r)<=2.3)SPOTS.push([c,r]);
+// Sparkle compositions, drawn like a ✨: one large star, a medium one offset on the diagonal, and a small
+// one tucked in close. [col,row] offsets on the dot grid; all clear of the arrow cursor (down-right of the tip).
+const LAYOUTS=[
+ [[-1,-1],[1,-2],[-2,-2]],   // classic: large low-left, medium high-right, small high-left
+ [[-2,0],[-1,-2],[1,-1]],    // leaning left
+ [[0,-2],[-2,-1],[1,-1]],    // crown above
+ [[-2,-1],[-1,1],[-1,-2]]    // wrapped round the left side
+];
+const BOLD=['✱','✲','✽','✻','✼','✣','✤','✥','✶','✷','✸','*'],LIGHT=['✦','✧','⁕','✳','✵'];
+let lastLayout=-1;
 function poke(x,y){
- // Snap to the dot grid and pick three cells that never line up, so the sparkle opens on several sides.
  const col=Math.round((x-space/2)/space),row=Math.round((y-space/2)/space);
- const any=()=>SPOTS[Math.floor(Math.random()*SPOTS.length)];
- let pick;
- for(let n=0;n<40;n++){
-  const [a,b,c]=[any(),any(),any()];
-  const area=Math.abs((b[0]-a[0])*(c[1]-a[1])-(c[0]-a[0])*(b[1]-a[1]));             // 0 when collinear
-  const near=[[a,b],[b,c],[a,c]].every(([p,q])=>Math.hypot(p[0]-q[0],p[1]-q[1])>=1);    // no repeats
-  const sides=new Set([a,b,c].map(([dc,dr])=>Math.sign(dc)+','+Math.sign(dr))).size;  // spread around the click
-  if(area>=1&&near&&sides>=2){pick=[a,b,c];break}
- }
- pick=pick||[[-1,0],[0,-1],[-2,-1]];
- pick.sort((p,q)=>Math.hypot(...p)-Math.hypot(...q));
- const mk=([dc,dr],d,s)=>({x:space/2+(col+dc)*space-x,y:space/2+(row+dr)*space-y,d,s:s+(Math.random()-.5)*3,peak:FINALS[Math.floor(Math.random()*FINALS.length)],seed:Math.random()*Math.PI});
- bursts.push({x,y,t:performance.now(),pts:[mk(pick[0],0,16),mk(pick[1],40,12),mk(pick[2],80,12)]});
+ let k=Math.floor(Math.random()*(LAYOUTS.length-1));if(k>=lastLayout)k++;lastLayout=k;   // never the same twice in a row
+ const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
+ const mk=([dc,dr],d,s,set)=>({x:space/2+(col+dc)*space-x,y:space/2+(row+dr)*space-y,d,s,peak:pick(set),seed:Math.random()*Math.PI});
+ const [big,mid,small]=LAYOUTS[k];
+ bursts.push({x,y,t:performance.now(),pts:[mk(big,0,19,BOLD),mk(mid,50,13,FINALS),mk(small,100,9,LIGHT)]});
  if(!raf)raf=requestAnimationFrame(frame);wake();
 }
 // One dab of the brush: a soft core with faint bristle streaks. It only sets how wet each
