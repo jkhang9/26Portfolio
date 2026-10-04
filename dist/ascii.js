@@ -5,8 +5,6 @@ const motion=matchMedia('(prefers-reduced-motion: reduce)');let reduced=motion.m
 // Only the portfolio's palette tokens, kept low-contrast on the surround: faint muted dots at rest,
 // accent paint with a muted rim (no blended in-between colors).
 // Marks step through · • + ✦ ✳ ⁕ as paint builds and back down as it dries. Click sparks reuse the same ramp.
-// Kept small: the centre peaks at ✦/✳, its four neighbours at + and •.
-const SPARK_LEVEL={'·':.03,'.':.03,'˚':.12,':':.12,'+':.28,'*':.5,'×':.7};
 let w=0,h=0,cells=[],bursts=[],raf=0,last=0,until=0;
 const pointer={x:-999,y:-999,active:false,moved:0};let down=null;
 // The brush tip trails the pointer slightly, so quick flicks bend into curves instead of corners.
@@ -42,23 +40,27 @@ function tilt(age,seed,strength){
  return Math.sin(age/85)*Math.exp(-age/190)*(seed>.5?1:-1)*.42*strength;
 }
 // A click claims existing cells. There is no second particle rendering pass.
+// Click firework: eight rays on the dot grid (4 cells straight out, 3 diagonally). A bright spark head
+// travels out along each ray one cell at a time and leaves a short trail that fades back down the ramp,
+// so the burst reads as streaks rather than a filled grid.
+const FW_STEP=55,FW_HOLD=45,FW_FADE=190,FW_LIFE=800;
+function rayStep(b,x,y){
+ const i=Math.round((x-b.x)/space),j=Math.round((y-b.y)/space),ai=Math.abs(i),aj=Math.abs(j);
+ if(i===0&&j===0)return 0;
+ if(i===0||j===0)return Math.max(ai,aj)<=4?Math.max(ai,aj):-1;
+ if(ai===aj)return ai<=3?ai+.5:-1;     // diagonals sit a little further out
+ return -1;
+}
 function clickAt(x,y,now){
- for(let i=bursts.length-1;i>=0;i--){const b=bursts[i];if(now-b.t<900&&Math.hypot(x-b.x,y-b.y)<20)return b}
+ for(let i=bursts.length-1;i>=0;i--){const b=bursts[i];if(now-b.t<FW_LIFE&&rayStep(b,x,y)>=0)return b}
  return null;
 }
-function clickGlyph(b,x,y,now,center=false){
- const age=now-b.t,distance=Math.hypot(x-b.x,y-b.y);
- if(center)return age<75?'*':age<250?'×':age<520?(Math.floor((age-250)/85)%2?'×':'+'):age<650?'*':age<760?'+':age<830?':':'.';
- const arrival=65+distance*2.8;
- if(age<arrival)return '.';
- const ring=distance<22?0:distance<37?1:2;
- if(age<520){
-  if(ring===2)return age-arrival<125?'˚':'.';
-  if(ring===1)return age-arrival<145?'+':':';
-  return age-arrival<155?'*':'+';
- }
- const decay=['*','+',':','.','·'];
- return decay[Math.min(4,ring+Math.floor((age-520)/76))];
+function fireLevel(b,x,y,now){
+ const k=rayStep(b,x,y),age=now-b.t-k*FW_STEP;
+ if(age<0)return null;
+ const peak=k===0?.86:k<3?.74:.58;                         // ⁕ flash at the centre, ✳ heads, ✦ at the tips
+ if(age<FW_HOLD)return peak*(.55+.45*Math.min(1,age/40));
+ return Math.max(0,peak*(1-(age-FW_HOLD)/FW_FADE));
 }
 function poke(x,y){
  let nearest=null,dist=Infinity;
@@ -107,7 +109,7 @@ const fgCanvas=document.querySelector('.ascii-fg canvas'),fctx=fgCanvas&&fgCanva
 const SURROUND='#565c3a';
 function frame(now){raf=0;const dt=Math.min(now-(last||now-16),40);last=now;ctx.clearRect(0,0,w,h);let unsettled=stroke(dt,now);
 if(fctx){fctx.clearRect(0,0,w,h);const r=sheet.getBoundingClientRect();fctx.save();fctx.beginPath();fctx.rect(r.left,r.top,r.width,r.height);fctx.clip();fctx.fillStyle=fctx.strokeStyle=SURROUND}
-bursts=bursts.filter(b=>now-b.t<900);
+bursts=bursts.filter(b=>now-b.t<FW_LIFE);
 for(let i=0;i<cells.length;i++){
  const c=cells[i];
  // Wet paint flows in quickly, then dries unevenly so the tail feathers out.
@@ -119,8 +121,8 @@ for(let i=0;i<cells.length;i++){
  let color=c.e>.001?paint(c):ink(c.x,c.y,0),alpha=c.e>.001?1:REST_ALPHA;
  const click=clickAt(c.x,c.y,now);
  if(click){
-  level=SPARK_LEVEL[clickGlyph(click,c.x,c.y,now,c.x===click.x&&c.y===click.y)]??.1;
-  color=ink(c.x,c.y,Math.min(.85,(900-(now-click.t))/380)*(1-Math.hypot(c.x-click.x,c.y-click.y)/78));alpha=1;
+  level=fireLevel(click,c.x,c.y,now);
+  if(level!=null){color=ink(c.x,c.y,level);alpha=1}
  }
  ctx.globalAlpha=alpha;ctx.fillStyle=ctx.strokeStyle=color;
  // Rotate around each cell's anchor. Clicks retain their slots.
