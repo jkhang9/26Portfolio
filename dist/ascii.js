@@ -40,15 +40,13 @@ function tilt(age,seed,strength){
  return Math.sin(age/85)*Math.exp(-age/190)*(seed>.5?1:-1)*.42*strength;
 }
 // A click claims existing cells. There is no second particle rendering pass.
-// Click firework: eight rays on the dot grid (4 cells straight out, 3 diagonally). A bright spark head
-// travels out along each ray one cell at a time and leaves a short trail that fades back down the ramp,
-// so the burst reads as streaks rather than a filled grid.
-const FW_STEP=55,FW_HOLD=45,FW_FADE=190,FW_LIFE=800;
+// Click sparkle: a single twinkle shaped like ✦. The clicked dot swells up to ⁕ and back down, and a
+// short glint reaches two dots out in the four straight directions (no diagonals), smaller at the tips.
+const FW_STEP=60,FW_LIFE=700;
 function rayStep(b,x,y){
- const i=Math.round((x-b.x)/space),j=Math.round((y-b.y)/space),ai=Math.abs(i),aj=Math.abs(j);
+ const i=Math.round((x-b.x)/space),j=Math.round((y-b.y)/space);
  if(i===0&&j===0)return 0;
- if(i===0||j===0)return Math.max(ai,aj)<=4?Math.max(ai,aj):-1;
- if(ai===aj)return ai<=3?ai+.5:-1;     // diagonals sit a little further out
+ if((i===0||j===0)&&Math.max(Math.abs(i),Math.abs(j))<=2)return Math.max(Math.abs(i),Math.abs(j));
  return -1;
 }
 function clickAt(x,y,now){
@@ -56,11 +54,10 @@ function clickAt(x,y,now){
  return null;
 }
 function fireLevel(b,x,y,now){
- const k=rayStep(b,x,y),age=now-b.t-k*FW_STEP;
- if(age<0)return null;
- const peak=k===0?.86:k<3?.74:.58;                         // ⁕ flash at the centre, ✳ heads, ✦ at the tips
- if(age<FW_HOLD)return peak*(.55+.45*Math.min(1,age/40));
- return Math.max(0,peak*(1-(age-FW_HOLD)/FW_FADE));
+ const k=rayStep(b,x,y),age=now-b.t-k*FW_STEP,life=k===0?620:k===1?360:260;
+ if(age<0||age>life)return null;
+ const peak=k===0?.9:k===1?.45:.2;                          // ⁕ centre, + then • along the glint
+ return peak*Math.sin(Math.PI*age/life);                    // swell in, then ease back out
 }
 function poke(x,y){
  let nearest=null,dist=Infinity;
