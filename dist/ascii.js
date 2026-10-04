@@ -65,12 +65,12 @@ function sparkle(g,b,now){
  }
 }
 // Sparkle compositions, drawn like a ✨: one large star, a medium one offset on the diagonal, and a small
-// one tucked in close. [col,row] offsets on the dot grid; all clear of the arrow cursor (down-right of the tip).
+// one tucked in close, all on the grid points right around the click. [col,row] offsets on the dot grid; all clear of the arrow cursor (down-right of the tip).
 const LAYOUTS=[
- [[-1,-1],[1,-2],[-2,-2]],   // classic: large low-left, medium high-right, small high-left
- [[-2,0],[-1,-2],[1,-1]],    // leaning left
- [[0,-2],[-2,-1],[1,-1]],    // crown above
- [[-2,-1],[-1,1],[-1,-2]]    // wrapped round the left side
+ [[-1,0],[1,-1],[-1,-1]],    // classic: large left, medium high-right, small tucked above the large
+ [[0,-1],[-1,1],[-1,0]],     // large above, medium low-left, small between them
+ [[-1,-1],[1,-1],[-1,1]],    // large upper-left, medium upper-right, small low-left
+ [[-1,0],[0,-1],[1,-1]]      // large left, medium above, small upper-right
 ];
 const BOLD=['✱','✲','✽','✻','✼','✣','✤','✥','✶','✷','✸','*'],LIGHT=['✦','✧','⁕','✳','✵'];
 let lastLayout=-1;
@@ -80,7 +80,7 @@ function poke(x,y){
  const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
  const mk=([dc,dr],d,s,set)=>({x:space/2+(col+dc)*space-x,y:space/2+(row+dr)*space-y,d,s,peak:pick(set),seed:Math.random()*Math.PI});
  const [big,mid,small]=LAYOUTS[k];
- bursts.push({x,y,t:performance.now(),pts:[mk(big,0,19,BOLD),mk(mid,50,13,FINALS),mk(small,100,9,LIGHT)]});
+ bursts.push({x,y,t:performance.now(),pts:[mk(big,0,16,BOLD),mk(mid,50,12,FINALS),mk(small,100,8,LIGHT)]});
  if(!raf)raf=requestAnimationFrame(frame);wake();
 }
 // One dab of the brush: a soft core with faint bristle streaks. It only sets how wet each
