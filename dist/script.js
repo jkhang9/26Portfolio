@@ -31,3 +31,28 @@ function shuffleAsterisk(){
 asteriskButton.addEventListener('pointerenter',event=>{if(event.pointerType!=='touch')shuffleAsterisk();});
 asteriskButton.addEventListener('click',shuffleAsterisk);
 asteriskButton.addEventListener('focus',()=>{if(asteriskButton.matches(':focus-visible'))shuffleAsterisk();});
+
+// Scroll indicator in the sheet's right margin (the native scrollbar is hidden so nothing covers content).
+// The thumb tracks the scroll position; drag it or click the rail to jump.
+(()=>{
+ const sc=$('frame-scroll'),rail=document.createElement('div'),thumb=document.createElement('div');
+ rail.className='scroll-rail';rail.setAttribute('aria-hidden','true');thumb.className='scroll-thumb';rail.appendChild(thumb);sheet.appendChild(rail);
+ let drag=null;
+ function update(){
+  const max=sc.scrollHeight-sc.clientHeight;rail.hidden=max<2;if(rail.hidden)return;
+  const s=sheet.getBoundingClientRect(),f=sc.getBoundingClientRect(),gap=s.right-f.right;
+  rail.style.top=(f.top-s.top)+'px';rail.style.height=f.height+'px';rail.style.right=Math.max(0,gap/2-7.5)+'px';
+  const h=Math.max(28,f.height*sc.clientHeight/sc.scrollHeight);
+  thumb.style.height=h+'px';thumb.style.top=((f.height-h)*sc.scrollTop/max)+'px';
+ }
+ function jump(y){const f=sc.getBoundingClientRect(),h=thumb.offsetHeight;sc.scrollTop=(y-f.top-h/2)/(f.height-h)*(sc.scrollHeight-sc.clientHeight)}
+ rail.addEventListener('pointerdown',e=>{e.preventDefault();rail.setPointerCapture(e.pointerId);rail.classList.add('dragging');
+  const t=thumb.getBoundingClientRect();drag=e.target===thumb?e.clientY-t.top-t.height/2:0;if(e.target!==thumb)jump(e.clientY)});
+ rail.addEventListener('pointermove',e=>{if(drag!==null)jump(e.clientY-drag)});
+ const end=()=>{drag=null;rail.classList.remove('dragging')};rail.addEventListener('pointerup',end);rail.addEventListener('pointercancel',end);
+ sc.addEventListener('scroll',update,{passive:true});addEventListener('resize',update);
+ new ResizeObserver(update).observe(sc);[...sc.children].forEach(c=>new ResizeObserver(update).observe(c));
+ document.querySelectorAll('[data-index]').forEach(b=>b.addEventListener('click',()=>requestAnimationFrame(update)));
+ addEventListener('hashchange',()=>requestAnimationFrame(update));addEventListener('load',update);update();
+})();
+

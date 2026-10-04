@@ -158,7 +158,7 @@ if(fctx){fctx.restore()}
 if(bursts.length||unsettled||now<until)raf=requestAnimationFrame(frame);else last=0;
 }
 // Clicks spark anywhere except on controls, so links, tabs and buttons behave exactly as before.
-const onControl=e=>!!(e.target.closest&&e.target.closest('a,button,input,textarea,select,label,summary,[role="button"]'));
+const onControl=e=>!!(e.target.closest&&e.target.closest('a,button,input,textarea,select,label,summary,[role="button"],.scroll-rail'));
 function move(e){pointer.x=e.clientX;pointer.y=e.clientY;pointer.active=true;pointer.moved=performance.now();if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>9)down.drag=true;wake()}
 // Listen on the window so the sheet stays fully interactive; sparks on the sheet are mirrored in green.
 addEventListener('pointermove',move,{passive:true});// Sparkle on press, so clicks made while the cursor is moving still count.
