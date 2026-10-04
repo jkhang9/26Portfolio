@@ -40,20 +40,26 @@ function tilt(age,seed,strength){
  return Math.sin(age/85)*Math.exp(-age/190)*(seed>.5?1:-1)*.42*strength;
 }
 // Click sparkle (option C, "Scatter"): three small ASCII asterisks blink on around the click one after
-// another, each stepping . + * + . as it grows and fades. Plain Commit Mono text, not the dot grid.
-const SPARK_LIFE=900,SPARK_SEQ='.+*+.',SPARK_FONT='"Commit Mono",ui-monospace,monospace';
+// another, each stepping . + * then holding before it fades. Plain Commit Mono text, not the dot grid.
+const SPARK_LIFE=1500,SPARK_FONT='"Commit Mono",ui-monospace,monospace';
+// Each asterisk grows . + * over 180ms, holds at * for 450ms, then fades back + . over 420ms.
+function sparkGlyph(t){
+ if(t<180)return[t<60?'.':t<120?'+':'*',.8+.4*(t/180)];
+ if(t<630)return['*',1.2];
+ const k=(t-630)/420;return[k<.45?'*':k<.75?'+':'.',1.2-.4*k];
+}
 function sparkle(g,b,now){
  const age=now-b.t;g.textAlign='center';g.textBaseline='middle';
  for(const p of b.pts){
-  const t=(age-p.d)/520;if(t<=0||t>=1)continue;
-  g.font=`400 ${(p.s*(.8+.4*Math.sin(Math.PI*t))).toFixed(1)}px ${SPARK_FONT}`;
-  g.fillText(SPARK_SEQ[Math.min(4,Math.floor(t*5))],b.x+p.x,b.y+p.y);
+  const t=age-p.d;if(t<=0||t>=1050)continue;
+  const [c,k]=sparkGlyph(t);
+  g.font=`400 ${(p.s*k).toFixed(1)}px ${SPARK_FONT}`;g.fillText(c,b.x+p.x,b.y+p.y);
  }
 }
 function poke(x,y){
- // The arrow cursor covers the area down-right of its tip, so the sparkle opens up and to the left of it:
- // the main asterisk sits just above-left of the click and the two small ones land around it on that side.
- const a=-Math.PI*.75+(Math.random()-.5)*.9,mx=-12,my=-12;
+ // The arrow cursor covers a wedge down and to the right of its tip, so the sparkle opens in a random
+ // direction anywhere else (left, up, upper right or lower left), 14px out, never under the arrow.
+ const dir=Math.PI*(.6+Math.random()*1.3),mx=Math.cos(dir)*14,my=Math.sin(dir)*14,a=dir+(Math.random()-.5)*.8;
  bursts.push({x,y,t:performance.now(),pts:[
   {x:mx,y:my,d:0,s:16},
   {x:mx+Math.cos(a-1.1)*15,y:my+Math.sin(a-1.1)*13,d:120,s:12},
@@ -136,8 +142,9 @@ if(bursts.length||unsettled||now<until)raf=requestAnimationFrame(frame);else las
 const onControl=e=>!!(e.target.closest&&e.target.closest('a,button,input,textarea,select,label,summary,[role="button"]'));
 function move(e){pointer.x=e.clientX;pointer.y=e.clientY;pointer.active=true;pointer.moved=performance.now();if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>9)down.drag=true;wake()}
 // Listen on the window so the sheet stays fully interactive; sparks on the sheet are mirrored in green.
-addEventListener('pointermove',move,{passive:true});addEventListener('pointerdown',e=>{if(e.button!==0)return;move(e);down=onControl(e)?null:{x:e.clientX,y:e.clientY,drag:false}},{passive:true});
-addEventListener('pointerup',e=>{if(down&&!down.drag&&!onControl(e)){poke(e.clientX,e.clientY)}down=null;if(e.pointerType!=='mouse'){pointer.active=false;wake()}},{passive:true});
+addEventListener('pointermove',move,{passive:true});// Sparkle on press, so clicks made while the cursor is moving still count.
+addEventListener('pointerdown',e=>{if(e.button!==0)return;move(e);down=onControl(e)?null:{x:e.clientX,y:e.clientY,drag:false};if(down)poke(e.clientX,e.clientY)},{passive:true});
+addEventListener('pointerup',e=>{down=null;if(e.pointerType!=='mouse'){pointer.active=false;wake()}},{passive:true});
 function leave(){pointer.active=false;down=null;wake()}document.documentElement.addEventListener('pointerleave',()=>{if(!down)leave()});addEventListener('pointercancel',leave);addEventListener('blur',leave);
 motion.addEventListener('change',e=>{reduced=e.matches;wake()});window.addEventListener('resize',resize);document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;last=0;pointer.active=false}else wake()});resize();
 })();
