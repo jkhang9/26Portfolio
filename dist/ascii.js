@@ -39,31 +39,39 @@ function tilt(age,seed,strength){
  if(reduced||age<0||age>650)return 0;
  return Math.sin(age/85)*Math.exp(-age/190)*(seed>.5?1:-1)*.42*strength;
 }
-// Click sparkle (option C, "Scatter"): three small ASCII asterisks blink on around the click one after
-// another, each stepping . + * then holding before it fades. Plain Commit Mono text, not the dot grid.
-const SPARK_LIFE=1500,SPARK_FONT='"Commit Mono",ui-monospace,monospace';
-// Each asterisk grows . + * over 180ms, holds at * for 450ms, then fades back + . over 420ms.
-function sparkGlyph(t){
- if(t<180)return[t<60?'.':t<120?'+':'*',.8+.4*(t/180)];
- if(t<630)return['*',1.2];
- const k=(t-630)/420;return[k<.45?'*':k<.75?'+':'.',1.2-.4*k];
+// Click sparkle: three ASCII marks scatter around the click. Each one appears on the next frame and
+// steps up . + x to its own peak glyph within ~120ms, holds for ~2.5s, then steps back down as it fades.
+// Peaks vary (* x + X), as do size and a slight tilt, so no two clicks look the same.
+const SPARK_LIFE=3600,SPARK_FONT='"Commit Mono",ui-monospace,monospace';
+const PEAKS=['*','*','*','x','+','X'];
+const UP=['.','+','x'],HOLD=2500,RISE=120,FALL=600;
+function sparkGlyph(t,peak){
+ if(t<RISE){const i=Math.floor(t/RISE*(UP.length+1));return i<UP.length?[UP[i],.7+.3*i/UP.length,1]:[peak,1,1]}
+ if(t<RISE+HOLD)return[peak,1,1];
+ const k=(t-RISE-HOLD)/FALL;if(k>=1)return null;
+ return[k<.35?peak:k<.6?'+':'.',1-.3*k,1-k*.6];
 }
 function sparkle(g,b,now){
  const age=now-b.t;g.textAlign='center';g.textBaseline='middle';
  for(const p of b.pts){
-  const t=age-p.d;if(t<=0||t>=1050)continue;
-  const [c,k]=sparkGlyph(t);
-  g.font=`400 ${(p.s*k).toFixed(1)}px ${SPARK_FONT}`;g.fillText(c,b.x+p.x,b.y+p.y);
+  const t=age-p.d;if(t<0)continue;
+  const r=sparkGlyph(t,p.peak);if(!r)continue;
+  const [c,k,a]=r;g.globalAlpha=a;
+  g.font=`400 ${(p.s*k).toFixed(1)}px ${SPARK_FONT}`;
+  g.save();g.translate(b.x+p.x,b.y+p.y);g.rotate(p.tilt);g.fillText(c,0,0);g.restore();
  }
+ g.globalAlpha=1;
 }
 function poke(x,y){
- // The arrow cursor covers a wedge down and to the right of its tip, so the sparkle opens in a random
- // direction anywhere else (left, up, upper right or lower left), 14px out, never under the arrow.
- const dir=Math.PI*(.6+Math.random()*1.3),mx=Math.cos(dir)*14,my=Math.sin(dir)*14,a=dir+(Math.random()-.5)*.8;
+ // The arrow cursor covers a wedge down-right of its tip, so the sparkle opens in a random direction
+ // anywhere else (left, up, upper right or lower left), close to the tip.
+ const dir=Math.PI*(.6+Math.random()*1.3),mx=Math.cos(dir)*12,my=Math.sin(dir)*12,a=dir+(Math.random()-.5)*.8;
+ const mk=(x,y,d,s)=>({x,y,d,s:s+(Math.random()-.5)*4,peak:PEAKS[Math.floor(Math.random()*PEAKS.length)],tilt:(Math.random()-.5)*.5});
  bursts.push({x,y,t:performance.now(),pts:[
-  {x:mx,y:my,d:0,s:16},
-  {x:mx+Math.cos(a-1.1)*15,y:my+Math.sin(a-1.1)*13,d:120,s:12},
-  {x:mx+Math.cos(a+1.1)*15,y:my+Math.sin(a+1.1)*13,d:230,s:11}]});wake();
+  mk(mx,my,0,17),
+  mk(mx+Math.cos(a-1.1)*15,my+Math.sin(a-1.1)*13,50,12),
+  mk(mx+Math.cos(a+1.1)*15,my+Math.sin(a+1.1)*13,100,11)]});
+ if(!raf)raf=requestAnimationFrame(frame);wake();
 }
 // One dab of the brush: a soft core with faint bristle streaks. It only sets how wet each
 // cell should be; the cell eases towards that level itself, so the paint flows in.
@@ -128,7 +136,8 @@ for(let i=0;i<cells.length;i++){
  if(level!=null){
   ctx.save();ctx.translate(c.x+c.dx,c.y+c.dy);ctx.rotate(angle);
   mark(level,c.seed*Math.PI);
-  if(fctx){fctx.setTransform(ctx.getTransform());mark(level,c.seed*Math.PI,fctx)}
+  // Copy the cell onto the sheet layer, then put its transform back so later drawing (sparkles) isn't offset.
+  if(fctx){fctx.save();fctx.setTransform(ctx.getTransform());mark(level,c.seed*Math.PI,fctx);fctx.restore()}
   ctx.restore();
  }else{ctx.beginPath();ctx.arc(c.x+c.dx,c.y+c.dy,.72,0,Math.PI*2);ctx.fill()}
  ctx.globalAlpha=1;
