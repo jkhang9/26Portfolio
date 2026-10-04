@@ -5,8 +5,6 @@ const motion=matchMedia('(prefers-reduced-motion: reduce)');let reduced=motion.m
 // Only the portfolio's palette tokens, kept low-contrast on the surround: faint muted dots at rest,
 // accent paint with a muted rim (no blended in-between colors).
 // Marks step through · • + ✦ ✳ ⁕ as paint builds and back down as it dries. Click sparks reuse the same ramp.
-// Kept small: the centre peaks at ✦/✳, its four neighbours at + and •.
-const SPARK_LEVEL={'·':.03,'.':.03,'˚':.12,':':.12,'+':.28,'*':.5,'×':.7};
 let w=0,h=0,cells=[],bursts=[],raf=0,last=0,until=0;
 const pointer={x:-999,y:-999,active:false,moved:0};let down=null;
 // The brush tip trails the pointer slightly, so quick flicks bend into curves instead of corners.
@@ -41,29 +39,49 @@ function tilt(age,seed,strength){
  if(reduced||age<0||age>650)return 0;
  return Math.sin(age/85)*Math.exp(-age/190)*(seed>.5?1:-1)*.42*strength;
 }
-// A click claims existing cells. There is no second particle rendering pass.
-function clickAt(x,y,now){
- for(let i=bursts.length-1;i>=0;i--){const b=bursts[i];if(now-b.t<900&&Math.hypot(x-b.x,y-b.y)<20)return b}
- return null;
+// Click sparkle: three marks on the dot grid next to the click. Like the brush trail, each mark follows a
+// continuous eased level and is drawn with the trail's own ramp (· • + ✦ ✳ ⁕, growing within each stage),
+// so the speed is even frame to frame. Near the peak it becomes its own final asterisk (one of seventeen).
+// U+FE0E asks for the text (not emoji) form; Asterisk Symbols covers ✱✲✳✻✼✽ and system symbol fonts the rest.
+const SPARK_LIFE=900,SPARK_FONT='"Asterisk Symbols","Apple Symbols","Segoe UI Symbol","Noto Sans Symbols 2","Noto Sans Symbols","DejaVu Sans","Commit Mono",sans-serif';
+const VS='︎',FINALS=['*','✱','✳','✲','✽','✻','✼','⁕','✣','✤','✥','✦','✧','✶','✷','✸','✵'];
+const RISE=200,FALL=380,PEAK_AT=.86;
+const easeOut=t=>1-Math.pow(1-t,3),easeInOut=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+function sparkLevel(t){
+ if(t<0)return null;
+ if(t<RISE)return easeOut(t/RISE);
+ const k=(t-RISE)/FALL;return k>=1?null:1-easeInOut(k);
 }
-function clickGlyph(b,x,y,now,center=false){
- const age=now-b.t,distance=Math.hypot(x-b.x,y-b.y);
- if(center)return age<75?'*':age<250?'×':age<520?(Math.floor((age-250)/85)%2?'×':'+'):age<650?'*':age<760?'+':age<830?':':'.';
- const arrival=65+distance*2.8;
- if(age<arrival)return '.';
- const ring=distance<22?0:distance<37?1:2;
- if(age<520){
-  if(ring===2)return age-arrival<125?'˚':'.';
-  if(ring===1)return age-arrival<145?'+':':';
-  return age-arrival<155?'*':'+';
+function sparkle(g,b,now){
+ const age=now-b.t;
+ for(const p of b.pts){
+  const lv=sparkLevel(age-p.d);if(lv==null||lv<.02)continue;
+  g.save();g.translate(b.x+p.x,b.y+p.y);
+  if(lv>=PEAK_AT){
+   const k=.8+.2*(lv-PEAK_AT)/(1-PEAK_AT);
+   g.textAlign='center';g.textBaseline='middle';g.font=`400 ${(p.s*k).toFixed(1)}px ${SPARK_FONT}`;g.fillText(p.peak+VS,0,0);
+  }else{const z=p.s/14;g.scale(z,z);mark(Math.min(lv/PEAK_AT,.999),p.seed,g,.75/z)}
+  g.restore();
  }
- const decay=['*','+',':','.','·'];
- return decay[Math.min(4,ring+Math.floor((age-520)/76))];
 }
+// Sparkle compositions, drawn like a ✨: one large star, a medium one offset on the diagonal, and a small
+// one tucked in close, all on the grid points right around the click. [col,row] offsets on the dot grid; all clear of the arrow cursor (down-right of the tip).
+const LAYOUTS=[
+ [[-1,0],[1,-1],[-1,-1]],    // classic: large left, medium high-right, small tucked above the large
+ [[0,-1],[-1,1],[-1,0]],     // large above, medium low-left, small between them
+ [[-1,-1],[1,-1],[-1,1]],    // large upper-left, medium upper-right, small low-left
+ [[-1,0],[0,-1],[1,-1]]      // large left, medium above, small upper-right
+];
+const BOLD=['✱','✲','✽','✻','✼','✣','✤','✥','✶','✷','✸','*'],LIGHT=['✦','✧','⁕','✳','✵'];
+let lastLayout=-1;
 function poke(x,y){
- let nearest=null,dist=Infinity;
- for(const c of cells){const d=Math.hypot(x-c.x,y-c.y);if(d<dist){nearest=c;dist=d}}
- if(nearest){bursts.push({x:nearest.x,y:nearest.y,t:performance.now()});wake()}
+ const col=Math.round((x-space/2)/space),row=Math.round((y-space/2)/space);
+ let k=Math.floor(Math.random()*(LAYOUTS.length-1));if(k>=lastLayout)k++;lastLayout=k;   // never the same twice in a row
+ const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
+ const mk=([dc,dr],d,s,set)=>({x:space/2+(col+dc)*space-x,y:space/2+(row+dr)*space-y,d,s,peak:pick(set),seed:Math.random()*Math.PI});
+ const [big,mid,small]=LAYOUTS[k];
+ bursts.push({x,y,t:performance.now(),pts:[mk(big,0,16,BOLD),mk(mid,50,12,FINALS),mk(small,100,8,LIGHT)]});
+ if(!raf)raf=requestAnimationFrame(frame);wake();
 }
 // One dab of the brush: a soft core with faint bristle streaks. It only sets how wet each
 // cell should be; the cell eases towards that level itself, so the paint flows in.
@@ -107,7 +125,7 @@ const fgCanvas=document.querySelector('.ascii-fg canvas'),fctx=fgCanvas&&fgCanva
 const SURROUND='#565c3a';
 function frame(now){raf=0;const dt=Math.min(now-(last||now-16),40);last=now;ctx.clearRect(0,0,w,h);let unsettled=stroke(dt,now);
 if(fctx){fctx.clearRect(0,0,w,h);const r=sheet.getBoundingClientRect();fctx.save();fctx.beginPath();fctx.rect(r.left,r.top,r.width,r.height);fctx.clip();fctx.fillStyle=fctx.strokeStyle=SURROUND}
-bursts=bursts.filter(b=>now-b.t<900);
+bursts=bursts.filter(b=>now-b.t<SPARK_LIFE);
 for(let i=0;i<cells.length;i++){
  const c=cells[i];
  // Wet paint flows in quickly, then dries unevenly so the tail feathers out.
@@ -117,37 +135,35 @@ for(let i=0;i<cells.length;i++){
  }
  let level=c.e>.025?Math.min(1,(c.e-.025)*1.4):null;
  let color=c.e>.001?paint(c):ink(c.x,c.y,0),alpha=c.e>.001?1:REST_ALPHA;
- const click=clickAt(c.x,c.y,now);
- if(click){
-  level=SPARK_LEVEL[clickGlyph(click,c.x,c.y,now,c.x===click.x&&c.y===click.y)]??.1;
-  color=ink(c.x,c.y,Math.min(.85,(900-(now-click.t))/380)*(1-Math.hypot(c.x-click.x,c.y-click.y)/78));alpha=1;
- }
  ctx.globalAlpha=alpha;ctx.fillStyle=ctx.strokeStyle=color;
- // Rotate around each cell's anchor. Clicks retain their slots.
+ // Rotate around each cell's anchor.
  const age=now-(c.entered??-10000);
- const angle=click?0:tilt(age,c.seed,Math.min(1,c.e*3));
- const force=reduced||click?0:Math.sin(c.e*Math.PI)*3.2;
+ const angle=tilt(age,c.seed,Math.min(1,c.e*3));
+ const force=reduced?0:Math.sin(c.e*Math.PI)*3.2;
  const tx=c.ux*force,ty=c.uy*force;
  c.dx+=(tx-c.dx)*Math.min(1,dt/55);c.dy+=(ty-c.dy)*Math.min(1,dt/55);
  if(Math.abs(c.dx-tx)+Math.abs(c.dy-ty)>.02||(!reduced&&age<650&&c.e>.025))unsettled=true;
  if(level!=null){
-  ctx.save();ctx.translate(c.x+(click?0:c.dx),c.y+(click?0:c.dy));ctx.rotate(angle);
-  if(!reduced&&click&&c.x===click.x&&c.y===click.y){const age=now-click.t,scale=age<75?.9:1+Math.sin(Math.min(1,(age-75)/180)*Math.PI)*.04;ctx.scale(scale,scale)}
+  ctx.save();ctx.translate(c.x+c.dx,c.y+c.dy);ctx.rotate(angle);
   mark(level,c.seed*Math.PI);
-  if(fctx){fctx.setTransform(ctx.getTransform());mark(level,c.seed*Math.PI,fctx)}
+  // Copy the cell onto the sheet layer, then put its transform back so later drawing (sparkles) isn't offset.
+  if(fctx){fctx.save();fctx.setTransform(ctx.getTransform());mark(level,c.seed*Math.PI,fctx);fctx.restore()}
   ctx.restore();
  }else{ctx.beginPath();ctx.arc(c.x+c.dx,c.y+c.dy,.72,0,Math.PI*2);ctx.fill()}
  ctx.globalAlpha=1;
 }
+// Sparkles sit on top of the dots: accent on the surround, surround green on the sheet.
+if(bursts.length){ctx.globalAlpha=1;ctx.fillStyle=ctx.strokeStyle=ACCENT;for(const b of bursts)sparkle(ctx,b,now);if(fctx){fctx.globalAlpha=1;fctx.fillStyle=fctx.strokeStyle=SURROUND;for(const b of bursts)sparkle(fctx,b,now)}}
 if(fctx){fctx.restore()}
 if(bursts.length||unsettled||now<until)raf=requestAnimationFrame(frame);else last=0;
 }
 // Clicks spark anywhere except on controls, so links, tabs and buttons behave exactly as before.
-const onControl=e=>!!(e.target.closest&&e.target.closest('a,button,input,textarea,select,label,summary,[role="button"]'));
+const onControl=e=>!!(e.target.closest&&e.target.closest('a,button,input,textarea,select,label,summary,[role="button"],.scroll-rail'));
 function move(e){pointer.x=e.clientX;pointer.y=e.clientY;pointer.active=true;pointer.moved=performance.now();if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>9)down.drag=true;wake()}
 // Listen on the window so the sheet stays fully interactive; sparks on the sheet are mirrored in green.
-addEventListener('pointermove',move,{passive:true});addEventListener('pointerdown',e=>{if(e.button!==0)return;move(e);down=onControl(e)?null:{x:e.clientX,y:e.clientY,drag:false}},{passive:true});
-addEventListener('pointerup',e=>{if(down&&!down.drag&&!onControl(e)){poke(e.clientX,e.clientY)}down=null;if(e.pointerType!=='mouse'){pointer.active=false;wake()}},{passive:true});
+addEventListener('pointermove',move,{passive:true});// Sparkle on press, so clicks made while the cursor is moving still count.
+addEventListener('pointerdown',e=>{if(e.button!==0)return;move(e);down=onControl(e)?null:{x:e.clientX,y:e.clientY,drag:false};if(down)poke(e.clientX,e.clientY)},{passive:true});
+addEventListener('pointerup',e=>{down=null;if(e.pointerType!=='mouse'){pointer.active=false;wake()}},{passive:true});
 function leave(){pointer.active=false;down=null;wake()}document.documentElement.addEventListener('pointerleave',()=>{if(!down)leave()});addEventListener('pointercancel',leave);addEventListener('blur',leave);
-motion.addEventListener('change',e=>{reduced=e.matches;wake()});window.addEventListener('resize',resize);document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;last=0;pointer.active=false}else wake()});resize();
+motion.addEventListener('change',e=>{reduced=e.matches;wake()});window.addEventListener('resize',resize);document.fonts&&document.fonts.load('16px "Asterisk Symbols"','✱✲✳✻✼✽').catch(()=>{});document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;last=0;pointer.active=false}else wake()});resize();
 })();
