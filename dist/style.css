@@ -120,7 +120,7 @@ a.play-thumb:hover .visit-badge i,a.play-thumb:focus-visible .visit-badge i,.wor
 .frame-scroll::-webkit-scrollbar{display:none}
 .scroll-rail{position:absolute;width:15px;z-index:3;cursor:pointer;touch-action:none}
 .scroll-rail[hidden]{display:none}
-.scroll-rail::before{content:'';position:absolute;left:7px;top:0;bottom:0;width:1px;background:var(--accent)}
-.scroll-thumb{position:absolute;left:5px;width:5px;border-radius:3px;background:var(--muted);transition:background .2s,width .2s,left .2s}
-.scroll-rail:hover .scroll-thumb,.scroll-rail.dragging .scroll-thumb{background:var(--ink);left:4px;width:7px}
+.scroll-rail::before{content:'';position:absolute;left:7px;top:0;bottom:0;width:1px;background:var(--accent);opacity:.5}
+.scroll-thumb{position:absolute;left:5px;width:5px;border-radius:3px;background:var(--accent);transition:background .2s,width .2s,left .2s}
+.scroll-rail:hover .scroll-thumb,.scroll-rail.dragging .scroll-thumb{background:var(--muted);left:4px;width:7px}
 
