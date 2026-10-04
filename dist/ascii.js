@@ -39,19 +39,20 @@ function tilt(age,seed,strength){
  if(reduced||age<0||age>650)return 0;
  return Math.sin(age/85)*Math.exp(-age/190)*(seed>.5?1:-1)*.42*strength;
 }
-// Click sparkle: three marks scatter around the click. Each races up · • + ✦ ✳ ⁕ (about one frame per
-// step) to its own final asterisk, picked from a set of seventeen, holds ~2.5s, then steps back down.
+// Click sparkle: three marks on the dot grid next to the click. Each races up · • + ✦ ✳ ⁕ to its own
+// final asterisk (picked from seventeen) and straight back down with no pause, about 0.35s in all.
 // U+FE0E asks for the text (not emoji) form; Asterisk Symbols covers ✱✲✳✻✼✽ and system symbol fonts the rest.
-const SPARK_LIFE=3400,SPARK_FONT='"Asterisk Symbols","Apple Symbols","Segoe UI Symbol","Noto Sans Symbols 2","Noto Sans Symbols","DejaVu Sans","Commit Mono",sans-serif';
+const SPARK_LIFE=700,SPARK_FONT='"Asterisk Symbols","Apple Symbols","Segoe UI Symbol","Noto Sans Symbols 2","Noto Sans Symbols","DejaVu Sans","Commit Mono",sans-serif';
 const VS='︎',RAMP=['·','•','+','✦','✳','⁕'];
 const FINALS=['*','✱','✳','✲','✽','✻','✼','⁕','✣','✤','✥','✦','✧','✶','✷','✸','✵'];
-const STEP=18,HOLD=2500,FALL_STEP=55;
+const STEP=20;
 function sparkGlyph(t,fin){
- const up=RAMP.length*STEP;
- if(t<up)return[RAMP[Math.floor(t/STEP)],.75+.25*t/up,1];
- if(t<up+HOLD)return[fin,1,1];
- const i=Math.floor((t-up-HOLD)/FALL_STEP);if(i>RAMP.length)return null;
- return[i===0?fin:RAMP[RAMP.length-i],1-.25*i/RAMP.length,1-.6*i/(RAMP.length+1)];
+ // up: · • + ✦ ✳ ⁕, peak: final, down: ⁕ ✳ ✦ + • ·  (one STEP each)
+ const i=Math.floor(t/STEP),n=RAMP.length;
+ if(i<n)return[RAMP[i],.75+.25*i/n,1];
+ if(i===n)return[fin,1,1];
+ const j=i-n-1;if(j>=n)return null;
+ return[RAMP[n-1-j],1-.25*j/n,1-.5*j/n];
 }
 function sparkle(g,b,now){
  const age=now-b.t;g.textAlign='center';g.textBaseline='middle';
@@ -65,14 +66,13 @@ function sparkle(g,b,now){
  g.globalAlpha=1;
 }
 function poke(x,y){
- // The arrow cursor covers a wedge down-right of its tip, so the sparkle opens in a random direction
- // anywhere else (left, up, upper right or lower left), close to the tip.
- const dir=Math.PI*(.6+Math.random()*1.3),mx=Math.cos(dir)*12,my=Math.sin(dir)*12,a=dir+(Math.random()-.5)*.8;
- const mk=(x,y,d,s)=>({x,y,d,s:s+(Math.random()-.5)*4,peak:FINALS[Math.floor(Math.random()*FINALS.length)],tilt:(Math.random()-.5)*.5});
- bursts.push({x,y,t:performance.now(),pts:[
-  mk(mx,my,0,17),
-  mk(mx+Math.cos(a-1.1)*15,my+Math.sin(a-1.1)*13,50,12),
-  mk(mx+Math.cos(a+1.1)*15,my+Math.sin(a+1.1)*13,100,11)]});
+ // Snap to the dot grid. The arrow cursor covers the cells down-right of its tip, so the three marks take
+ // the clicked cell's neighbours on a random open side (left, up, upper right or lower left).
+ const col=Math.round((x-space/2)/space),row=Math.round((y-space/2)/space);
+ const open=[[-1,0],[-1,-1],[0,-1],[1,-1],[-1,1]];
+ const k=Math.floor(Math.random()*open.length),pick=[open[k],open[(k+1)%open.length],open[(k+open.length-1)%open.length]];
+ const mk=([dc,dr],d,s)=>({x:space/2+(col+dc)*space-x,y:space/2+(row+dr)*space-y,d,s:s+(Math.random()-.5)*3,peak:FINALS[Math.floor(Math.random()*FINALS.length)],tilt:0});
+ bursts.push({x,y,t:performance.now(),pts:[mk(pick[0],0,16),mk(pick[1],40,12),mk(pick[2],80,12)]});
  if(!raf)raf=requestAnimationFrame(frame);wake();
 }
 // One dab of the brush: a soft core with faint bristle streaks. It only sets how wet each
