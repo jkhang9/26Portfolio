@@ -51,8 +51,13 @@ function sparkle(g,b,now){
  }
 }
 function poke(x,y){
- const a=Math.random()*Math.PI*2;
- bursts.push({x,y,t:performance.now(),pts:[{x:0,y:0,d:0,s:16},{x:Math.cos(a)*18,y:Math.sin(a)*14,d:120,s:12},{x:Math.cos(a+2.3)*16,y:Math.sin(a+2.3)*13,d:230,s:11}]});wake();
+ // The arrow cursor covers the area down-right of its tip, so the sparkle opens up and to the left of it:
+ // the main asterisk sits just above-left of the click and the two small ones land around it on that side.
+ const a=-Math.PI*.75+(Math.random()-.5)*.9,mx=-12,my=-12;
+ bursts.push({x,y,t:performance.now(),pts:[
+  {x:mx,y:my,d:0,s:16},
+  {x:mx+Math.cos(a-1.1)*15,y:my+Math.sin(a-1.1)*13,d:120,s:12},
+  {x:mx+Math.cos(a+1.1)*15,y:my+Math.sin(a+1.1)*13,d:230,s:11}]});wake();
 }
 // One dab of the brush: a soft core with faint bristle streaks. It only sets how wet each
 // cell should be; the cell eases towards that level itself, so the paint flows in.
