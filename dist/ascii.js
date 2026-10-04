@@ -39,30 +39,24 @@ function tilt(age,seed,strength){
  if(reduced||age<0||age>650)return 0;
  return Math.sin(age/85)*Math.exp(-age/190)*(seed>.5?1:-1)*.42*strength;
 }
-// A click claims existing cells. There is no second particle rendering pass.
-// Click sparkle: a single twinkle shaped like ✦. The clicked dot swells up to ⁕ and back down, and a
-// short glint reaches two dots out in the four straight directions (no diagonals), smaller at the tips.
-const FW_STEP=60,FW_LIFE=700;
-function rayStep(b,x,y){
- const i=Math.round((x-b.x)/space),j=Math.round((y-b.y)/space);
- if(i===0&&j===0)return 0;
- if((i===0||j===0)&&Math.max(Math.abs(i),Math.abs(j))<=2)return Math.max(Math.abs(i),Math.abs(j));
- return -1;
+// Click sparkle: a drawn four-point star (✦) pops up at the click, turns a little and shrinks away,
+// with two tiny twinkles beside it. It is drawn on its own, not on the dot grid.
+const SPARK_LIFE=700;
+function star(g,x,y,r,turn){
+ const q=r*.22;g.save();g.translate(x,y);g.rotate(turn);g.beginPath();g.moveTo(0,-r);
+ g.quadraticCurveTo(q,-q,r,0);g.quadraticCurveTo(q,q,0,r);g.quadraticCurveTo(-q,q,-r,0);g.quadraticCurveTo(-q,-q,0,-r);
+ g.fill();g.restore();
 }
-function clickAt(x,y,now){
- for(let i=bursts.length-1;i>=0;i--){const b=bursts[i];if(now-b.t<FW_LIFE&&rayStep(b,x,y)>=0)return b}
- return null;
-}
-function fireLevel(b,x,y,now){
- const k=rayStep(b,x,y),age=now-b.t-k*FW_STEP,life=k===0?620:k===1?360:260;
- if(age<0||age>life)return null;
- const peak=k===0?.9:k===1?.45:.2;                          // ⁕ centre, + then • along the glint
- return peak*Math.sin(Math.PI*age/life);                    // swell in, then ease back out
+function sparkle(g,b,now){
+ const age=now-b.t;
+ const pop=(t0,len)=>{const t=(age-t0)/len;return t<=0||t>=1?0:Math.sin(Math.PI*Math.pow(t,.7))};
+ const turn=(age/SPARK_LIFE)*.6;
+ const main=pop(0,SPARK_LIFE);if(main)star(g,b.x,b.y,10*main,turn);
+ for(const s of b.sats){const k=pop(s.d,380);if(k)star(g,b.x+s.x,b.y+s.y,3.6*k,-turn)}
 }
 function poke(x,y){
- let nearest=null,dist=Infinity;
- for(const c of cells){const d=Math.hypot(x-c.x,y-c.y);if(d<dist){nearest=c;dist=d}}
- if(nearest){bursts.push({x:nearest.x,y:nearest.y,t:performance.now()});wake()}
+ const a=Math.random()*Math.PI*2;
+ bursts.push({x,y,t:performance.now(),sats:[{x:Math.cos(a)*15,y:Math.sin(a)*15,d:110},{x:Math.cos(a+2.4)*12,y:Math.sin(a+2.4)*12,d:200}]});wake();
 }
 // One dab of the brush: a soft core with faint bristle streaks. It only sets how wet each
 // cell should be; the cell eases towards that level itself, so the paint flows in.
@@ -106,7 +100,7 @@ const fgCanvas=document.querySelector('.ascii-fg canvas'),fctx=fgCanvas&&fgCanva
 const SURROUND='#565c3a';
 function frame(now){raf=0;const dt=Math.min(now-(last||now-16),40);last=now;ctx.clearRect(0,0,w,h);let unsettled=stroke(dt,now);
 if(fctx){fctx.clearRect(0,0,w,h);const r=sheet.getBoundingClientRect();fctx.save();fctx.beginPath();fctx.rect(r.left,r.top,r.width,r.height);fctx.clip();fctx.fillStyle=fctx.strokeStyle=SURROUND}
-bursts=bursts.filter(b=>now-b.t<FW_LIFE);
+bursts=bursts.filter(b=>now-b.t<SPARK_LIFE);
 for(let i=0;i<cells.length;i++){
  const c=cells[i];
  // Wet paint flows in quickly, then dries unevenly so the tail feathers out.
@@ -116,28 +110,24 @@ for(let i=0;i<cells.length;i++){
  }
  let level=c.e>.025?Math.min(1,(c.e-.025)*1.4):null;
  let color=c.e>.001?paint(c):ink(c.x,c.y,0),alpha=c.e>.001?1:REST_ALPHA;
- const click=clickAt(c.x,c.y,now);
- if(click){
-  level=fireLevel(click,c.x,c.y,now);
-  if(level!=null){color=ink(c.x,c.y,level);alpha=1}
- }
  ctx.globalAlpha=alpha;ctx.fillStyle=ctx.strokeStyle=color;
- // Rotate around each cell's anchor. Clicks retain their slots.
+ // Rotate around each cell's anchor.
  const age=now-(c.entered??-10000);
- const angle=click?0:tilt(age,c.seed,Math.min(1,c.e*3));
- const force=reduced||click?0:Math.sin(c.e*Math.PI)*3.2;
+ const angle=tilt(age,c.seed,Math.min(1,c.e*3));
+ const force=reduced?0:Math.sin(c.e*Math.PI)*3.2;
  const tx=c.ux*force,ty=c.uy*force;
  c.dx+=(tx-c.dx)*Math.min(1,dt/55);c.dy+=(ty-c.dy)*Math.min(1,dt/55);
  if(Math.abs(c.dx-tx)+Math.abs(c.dy-ty)>.02||(!reduced&&age<650&&c.e>.025))unsettled=true;
  if(level!=null){
-  ctx.save();ctx.translate(c.x+(click?0:c.dx),c.y+(click?0:c.dy));ctx.rotate(angle);
-  if(!reduced&&click&&c.x===click.x&&c.y===click.y){const age=now-click.t,scale=age<75?.9:1+Math.sin(Math.min(1,(age-75)/180)*Math.PI)*.04;ctx.scale(scale,scale)}
+  ctx.save();ctx.translate(c.x+c.dx,c.y+c.dy);ctx.rotate(angle);
   mark(level,c.seed*Math.PI);
   if(fctx){fctx.setTransform(ctx.getTransform());mark(level,c.seed*Math.PI,fctx)}
   ctx.restore();
  }else{ctx.beginPath();ctx.arc(c.x+c.dx,c.y+c.dy,.72,0,Math.PI*2);ctx.fill()}
  ctx.globalAlpha=1;
 }
+// Sparkles sit on top of the dots: accent on the surround, surround green on the sheet.
+if(bursts.length){ctx.globalAlpha=1;ctx.fillStyle=ACCENT;for(const b of bursts)sparkle(ctx,b,now);if(fctx){fctx.globalAlpha=1;fctx.fillStyle=SURROUND;for(const b of bursts)sparkle(fctx,b,now)}}
 if(fctx){fctx.restore()}
 if(bursts.length||unsettled||now<until)raf=requestAnimationFrame(frame);else last=0;
 }
