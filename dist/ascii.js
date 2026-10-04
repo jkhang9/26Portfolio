@@ -39,17 +39,19 @@ function tilt(age,seed,strength){
  if(reduced||age<0||age>650)return 0;
  return Math.sin(age/85)*Math.exp(-age/190)*(seed>.5?1:-1)*.42*strength;
 }
-// Click sparkle: three ASCII marks scatter around the click. Each one appears on the next frame and
-// steps up . + x to its own peak glyph within ~120ms, holds for ~2.5s, then steps back down as it fades.
-// Peaks vary (* x + X), as do size and a slight tilt, so no two clicks look the same.
-const SPARK_LIFE=3600,SPARK_FONT='"Commit Mono",ui-monospace,monospace';
-const PEAKS=['*','*','*','x','+','X'];
-const UP=['.','+','x'],HOLD=2500,RISE=120,FALL=600;
-function sparkGlyph(t,peak){
- if(t<RISE){const i=Math.floor(t/RISE*(UP.length+1));return i<UP.length?[UP[i],.7+.3*i/UP.length,1]:[peak,1,1]}
- if(t<RISE+HOLD)return[peak,1,1];
- const k=(t-RISE-HOLD)/FALL;if(k>=1)return null;
- return[k<.35?peak:k<.6?'+':'.',1-.3*k,1-k*.6];
+// Click sparkle: three marks scatter around the click. Each races up · • + ✦ ✳ ⁕ (about one frame per
+// step) to its own final asterisk, picked from a set of seventeen, holds ~2.5s, then steps back down.
+// U+FE0E asks for the text (not emoji) form; Asterisk Symbols covers ✱✲✳✻✼✽ and system symbol fonts the rest.
+const SPARK_LIFE=3400,SPARK_FONT='"Asterisk Symbols","Apple Symbols","Segoe UI Symbol","Noto Sans Symbols 2","Noto Sans Symbols","DejaVu Sans","Commit Mono",sans-serif';
+const VS='︎',RAMP=['·','•','+','✦','✳','⁕'];
+const FINALS=['*','✱','✳','✲','✽','✻','✼','⁕','✣','✤','✥','✦','✧','✶','✷','✸','✵'];
+const STEP=18,HOLD=2500,FALL_STEP=55;
+function sparkGlyph(t,fin){
+ const up=RAMP.length*STEP;
+ if(t<up)return[RAMP[Math.floor(t/STEP)],.75+.25*t/up,1];
+ if(t<up+HOLD)return[fin,1,1];
+ const i=Math.floor((t-up-HOLD)/FALL_STEP);if(i>RAMP.length)return null;
+ return[i===0?fin:RAMP[RAMP.length-i],1-.25*i/RAMP.length,1-.6*i/(RAMP.length+1)];
 }
 function sparkle(g,b,now){
  const age=now-b.t;g.textAlign='center';g.textBaseline='middle';
@@ -58,7 +60,7 @@ function sparkle(g,b,now){
   const r=sparkGlyph(t,p.peak);if(!r)continue;
   const [c,k,a]=r;g.globalAlpha=a;
   g.font=`400 ${(p.s*k).toFixed(1)}px ${SPARK_FONT}`;
-  g.save();g.translate(b.x+p.x,b.y+p.y);g.rotate(p.tilt);g.fillText(c,0,0);g.restore();
+  g.save();g.translate(b.x+p.x,b.y+p.y);g.rotate(p.tilt);g.fillText(c+VS,0,0);g.restore();
  }
  g.globalAlpha=1;
 }
@@ -66,7 +68,7 @@ function poke(x,y){
  // The arrow cursor covers a wedge down-right of its tip, so the sparkle opens in a random direction
  // anywhere else (left, up, upper right or lower left), close to the tip.
  const dir=Math.PI*(.6+Math.random()*1.3),mx=Math.cos(dir)*12,my=Math.sin(dir)*12,a=dir+(Math.random()-.5)*.8;
- const mk=(x,y,d,s)=>({x,y,d,s:s+(Math.random()-.5)*4,peak:PEAKS[Math.floor(Math.random()*PEAKS.length)],tilt:(Math.random()-.5)*.5});
+ const mk=(x,y,d,s)=>({x,y,d,s:s+(Math.random()-.5)*4,peak:FINALS[Math.floor(Math.random()*FINALS.length)],tilt:(Math.random()-.5)*.5});
  bursts.push({x,y,t:performance.now(),pts:[
   mk(mx,my,0,17),
   mk(mx+Math.cos(a-1.1)*15,my+Math.sin(a-1.1)*13,50,12),
@@ -155,5 +157,5 @@ addEventListener('pointermove',move,{passive:true});// Sparkle on press, so clic
 addEventListener('pointerdown',e=>{if(e.button!==0)return;move(e);down=onControl(e)?null:{x:e.clientX,y:e.clientY,drag:false};if(down)poke(e.clientX,e.clientY)},{passive:true});
 addEventListener('pointerup',e=>{down=null;if(e.pointerType!=='mouse'){pointer.active=false;wake()}},{passive:true});
 function leave(){pointer.active=false;down=null;wake()}document.documentElement.addEventListener('pointerleave',()=>{if(!down)leave()});addEventListener('pointercancel',leave);addEventListener('blur',leave);
-motion.addEventListener('change',e=>{reduced=e.matches;wake()});window.addEventListener('resize',resize);document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;last=0;pointer.active=false}else wake()});resize();
+motion.addEventListener('change',e=>{reduced=e.matches;wake()});window.addEventListener('resize',resize);document.fonts&&document.fonts.load('16px "Asterisk Symbols"','✱✲✳✻✼✽').catch(()=>{});document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;last=0;pointer.active=false}else wake()});resize();
 })();
